@@ -1,0 +1,1 @@
+<?php require_once __DIR__.'/../modules/dashboard_page.php'; render_role_dashboard('Senior Citizen');

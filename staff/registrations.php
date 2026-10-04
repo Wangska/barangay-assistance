@@ -1,0 +1,1 @@
+<?php require_once __DIR__.'/../modules/registrations_page.php'; render_registration_list(['Barangay Staff']);

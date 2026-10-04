@@ -1,0 +1,11 @@
+uploads/*
+!uploads/.htaccess
+.env
+.env.*
+*.log
+Thumbs.db
+.DS_Store
+
+/barangay-assistance-storage/*
+!/barangay-assistance-storage/.htaccess
+!/barangay-assistance-storage/README.md

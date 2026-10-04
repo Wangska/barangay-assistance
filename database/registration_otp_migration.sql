@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS registration_email_codes (
+ email VARCHAR(150) PRIMARY KEY,
+ code_hash VARCHAR(255) NOT NULL DEFAULT '',
+ browser_hash CHAR(64) NOT NULL DEFAULT '',
+ expires_at BIGINT NOT NULL DEFAULT 0,
+ attempts INT NOT NULL DEFAULT 0,
+ sent_at BIGINT NOT NULL DEFAULT 0,
+ window_started_at BIGINT NOT NULL DEFAULT 0,
+ send_count INT NOT NULL DEFAULT 0
+) ENGINE=InnoDB;

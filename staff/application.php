@@ -1,0 +1,1 @@
+<?php require_once __DIR__ . '/../modules/application_page.php'; render_application_page(['Barangay Staff']);
