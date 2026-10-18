@@ -150,7 +150,8 @@ if ($user) {
         return open;
     };
     const openRegistration = bindDialog(document.getElementById('registration-dialog'), 'register.php?embed=1', '[data-open-registration]');
-    bindDialog(document.getElementById('signin-dialog'), 'login.php?embed=1', '[data-open-signin]');
+    const openSignin = bindDialog(document.getElementById('signin-dialog'), 'login.php?embed=1', '[data-open-signin]');
+    if (location.hash === '#signin') openSignin();
     window.addEventListener('message', (event) => {
         if (event.origin !== window.location.origin || event.data?.type !== 'open-registration') return;
         openRegistration();

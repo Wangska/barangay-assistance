@@ -96,5 +96,5 @@ input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #154a
 </form>
 <p class="notice">Please wait at least one minute between requests. You can request up to 5 codes per hour. Only the latest code works. If you cannot access your email, contact the Barangay Office.</p>
 <?php endif; ?>
-<a href="login.php" class="back">Back to Login</a>
+<a href="index.php#signin" class="back">Back to Login</a>
 </div></main></body></html>
