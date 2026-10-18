@@ -20,16 +20,13 @@ $menus = [
         ['Events', '/admin/events.php', 'bi-calendar-event'],
         ['Reports', '/admin/reports.php', 'bi-file-earmark-bar-graph'],
         ['SMS Logs', '/admin/sms_logs.php', 'bi-chat-dots'],
-        ['Audit Logs', '/admin/audit_logs.php', 'bi-shield-check'],
-        ['Settings', '/admin/settings.php', 'bi-gear'],
-        ['Backup', '/admin/backup.php', 'bi-database-down']
+        ['Audit Logs', '/admin/audit_logs.php', 'bi-shield-check']
 
     ],
 
     'Barangay Staff' => [
 
         ['Dashboard', '/staff/dashboard.php', 'bi-speedometer2'],
-        ['Notifications', '/staff/notifications.php', 'bi-bell'],
         ['Registrations', '/staff/registrations.php', 'bi-person-check'],
         ['Seniors', '/staff/seniors.php', 'bi-person-hearts'],
         ['Requests', '/staff/requests.php', 'bi-clipboard2-pulse'],
@@ -44,8 +41,6 @@ $menus = [
 
         ['Dashboard', '/senior/dashboard.php', 'bi-speedometer2'],
         ['Application', '/senior/application.php', 'bi-list-check'],
-        ['Profile', '/senior/profile.php', 'bi-person'],
-        ['Notifications', '/senior/notifications.php', 'bi-bell'],
         ['Requests', '/senior/requests.php', 'bi-clipboard-plus'],
         ['Announcements', '/senior/announcements.php', 'bi-broadcast'],
         ['Events', '/senior/events.php', 'bi-calendar-event']
@@ -59,8 +54,7 @@ $menus = [
 
 <?php if ($role === 'Senior Citizen' && $u['status'] !== 'Active') {
     $menus[$role] = [
-        ['Application','/senior/application.php','bi-list-check'],
-        ['Notifications','/senior/notifications.php','bi-bell']
+        ['Application','/senior/application.php','bi-list-check']
     ];
 } ?>
 <div class="app-shell">
@@ -92,29 +86,37 @@ $menus = [
 
             <hr>
 
-            <div class="text-center mb-3">
+            <?php
+            $profilePage = match ($role) {
+                'Administrator' => '/admin/profile.php',
+                'Barangay Staff' => '/staff/profile.php',
+                'Senior Citizen' => '/senior/profile.php',
+                default => null,
+            };
+            $profilePhoto = $profilePage !== null ? profile_photo_storage_path($u['profile_photo'] ?? null) : null;
+            $accountTag = $profilePage !== null ? 'a' : 'div';
+            $accountHref = $profilePage !== null ? ' href="' . BASE_URL . $profilePage . '"' : '';
+            ?>
+            <<?= $accountTag ?> class="sidebar-account mb-3"<?= $accountHref ?>>
 
-                <strong>
+                <span class="sidebar-avatar">
+                    <?php if ($profilePhoto !== null): ?>
+                        <img src="<?= BASE_URL ?>/admin/profile_photo.php?v=<?= (int) filemtime($profilePhoto) ?>" alt="">
+                    <?php else: ?>
+                        <i class="bi bi-person-fill" aria-hidden="true"></i>
+                    <?php endif; ?>
+                </span>
 
-                    <i class="bi bi-person-circle"></i>
+                <span class="sidebar-identity">
+                    <strong><?= e($u['full_name']) ?></strong>
+                    <small><?= e($role) ?></small>
+                </span>
 
-                    <?= e($u['full_name']) ?>
-
-                </strong>
-
-                <br>
-
-                <small>
-
-                    <?= e($role) ?>
-
-                </small>
-
-            </div>
+            </<?= $accountTag ?>>
 
             <button
                 type="button"
-                class="sidebar-link text-danger"
+                class="sidebar-link sidebar-logout"
                 data-bs-toggle="modal"
                 data-bs-target="#logout-modal"
             >
@@ -137,7 +139,7 @@ $menus = [
                     <p><span data-en="Are you sure you want to logout?" data-ceb="Sigurado ka ba nga gusto ka mogawas?">Are you sure you want to logout?</span></p>
                     <div class="logout-actions">
                         <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal"><span data-en="Cancel" data-ceb="Kanselahon">Cancel</span></button>
-                        <a class="btn btn-primary" href="<?= BASE_URL ?>/logout.php"><span data-en="Log out" data-ceb="Paggawas">Log out</span></a>
+                        <a class="btn logout-confirm" href="<?= BASE_URL ?>/logout.php"><span data-en="Log out" data-ceb="Paggawas">Log out</span></a>
                     </div>
                 </div>
             </div>

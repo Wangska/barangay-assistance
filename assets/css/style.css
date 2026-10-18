@@ -30,8 +30,40 @@ body::before { position: fixed; z-index: -1; top: -170px; right: -150px; width: 
 .sidebar hr { margin: 0 0 1rem; border-color: rgba(255,255,255,.14); opacity: 1; }
 .sidebar .text-center { padding: .35rem; color: rgba(255,255,255,.88); font-size: .8rem; }
 .sidebar .text-center small { color: rgba(255,255,255,.5); }
-.sidebar .text-danger { color: #ffa6a6 !important; }.sidebar .text-danger:hover { color: #fff !important; background: rgba(226, 84, 84, .28); }
+.sidebar-account { display: flex; flex-direction: row; align-items: center; gap: .75rem; color: inherit; text-align: left; text-decoration: none; }
+.sidebar-account:hover, .sidebar-account:focus-visible { color: #fff; }
+.sidebar-identity { min-width: 0; }
+.sidebar-identity strong, .sidebar-identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-avatar { display: grid; flex: 0 0 auto; width: 2.7rem; height: 2.7rem; place-items: center; overflow: hidden; color: #fff; background: rgba(255,255,255,.12); border-radius: 50%; }
+.sidebar-avatar .bi { font-size: 1.55rem; line-height: 1; }
+.sidebar-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.profile-head { display: flex; align-items: center; gap: 1.15rem; }
+.profile-identity strong { display: block; color: var(--navy); font-size: 1.2rem; }
+.profile-identity span { color: var(--muted); font-size: .92rem; }
+.profile-photo-wrap { position: relative; flex: 0 0 auto; width: 7.5rem; height: 7.5rem; }
+.profile-photo { position: relative; display: grid; width: 100%; height: 100%; place-items: center; overflow: hidden; color: var(--teal); background: var(--teal-soft); border-radius: 50%; }
+.profile-photo .bi { font-size: 4.4rem; line-height: 1; }
+.profile-photo img.profile-current { width: 100%; height: 100%; object-fit: cover; }
+.profile-camera { position: absolute; right: .15rem; bottom: .15rem; z-index: 2; display: grid; width: 2.05rem; height: 2.05rem; place-items: center; padding: 0; color: #fff; font-size: .95rem; background: var(--teal); border: 2px solid #fff; border-radius: 50%; box-shadow: 0 4px 10px rgba(16, 60, 84, .2); cursor: pointer; }
+.profile-camera:hover, .profile-camera:focus-visible { background: #096d6d; }
+.photo-modal { border: 0; border-radius: 16px; box-shadow: 0 22px 46px rgba(20, 72, 76, .18); }
+.photo-modal .modal-body { padding: 1.15rem 1.25rem 1rem; }
+.photo-modal-title { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.photo-modal h2 { margin: 0; color: #1d2b33; font-family: 'DM Sans', Arial, sans-serif; font-size: 1.15rem; font-weight: 700; }
+.photo-modal .crop-help { margin: .9rem 0 1rem; color: #5d6b73; font-size: .95rem; line-height: 1.45; }
+.crop-frame { position: relative; width: min(100%, 340px); aspect-ratio: 1; margin: 0 auto 1rem; overflow: hidden; background: #111; border-radius: 12px; touch-action: none; cursor: grab; }
+.crop-frame img { position: absolute; top: 0; left: 0; max-width: none; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+.crop-shade { position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 999px rgba(0, 0, 0, .55); pointer-events: none; }
+.photo-zoom { display: grid; gap: .35rem; margin-bottom: 1rem; color: #314049; font-size: .95rem; font-weight: 600; }
+.photo-zoom input { width: 100%; accent-color: #2f6fed; }
+.photo-modal-actions { display: flex; justify-content: flex-end; gap: .6rem; padding-top: .85rem; border-top: 1px solid #e6ebef; }
 button.sidebar-link { width: 100%; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
+button.sidebar-logout, button.sidebar-logout i { color: #f0b4b4; }
+button.sidebar-logout { margin-top: .35rem; background: rgba(196, 69, 69, .14); border: 1px solid rgba(240, 180, 180, .45); }
+button.sidebar-logout:hover, button.sidebar-logout:focus-visible { color: #fff; background: rgba(196, 69, 69, .32); border-color: rgba(240, 180, 180, .75); transform: none; }
+button.sidebar-logout:hover i, button.sidebar-logout:focus-visible i { color: #fff; }
+.logout-confirm { color: #fff; background: #c44545; border: 1px solid #c44545; }
+.logout-confirm:hover, .logout-confirm:focus-visible { color: #fff; background: #a33636; border-color: #a33636; }
 .logout-modal { border: 0; border-radius: 18px; box-shadow: 0 22px 46px rgba(20, 72, 76, .18); }
 .logout-modal .modal-body { padding: 1.5rem 1.4rem 1.3rem; }
 .logout-modal h2 { margin: 0 0 .4rem; color: var(--navy); font-family: 'Playfair Display', Georgia, serif; font-size: 1.7rem; }
@@ -78,7 +110,7 @@ button.sidebar-link { width: 100%; border: 0; background: none; font: inherit; t
 
 .auth-wrap { display: grid; min-height: 100vh; padding: 2rem 1rem; place-items: center; }.auth-card { width: min(960px, 100%); background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 22px 46px rgba(20,72,76,.12); overflow: hidden; }.auth-aside { padding: 2rem; color: #fff; background: linear-gradient(145deg, var(--teal), var(--navy)); }.required::after { content: ' *'; color: #c74444; }
 
-@media (max-width: 900px) { .app-shell { display: block; }.sidebar { position: static; align-self: auto; width: 100%; height: auto; max-height: none; padding: .75rem; }.sidebar-title { display: none; }.sidebar > .sidebar-link, .sidebar > .mt-auto { display: inline-flex; }.sidebar { flex-direction: row; align-items: center; gap: .15rem; overflow-x: auto; overflow-y: visible; }.sidebar-link { flex: 0 0 auto; margin: 0; white-space: nowrap; }.sidebar .mt-auto { display: flex; flex: 0 0 auto; margin: 0 !important; padding: 0 !important; }.sidebar .mt-auto hr, .sidebar .mt-auto .text-center { display: none; }.content { padding: 1.2rem; } }
+@media (max-width: 900px) { .app-shell { display: block; }.sidebar { position: static; align-self: auto; width: 100%; height: auto; max-height: none; padding: .75rem; }.sidebar-title { display: none; }.sidebar > .sidebar-link, .sidebar > .mt-auto { display: inline-flex; }.sidebar { flex-direction: row; align-items: center; gap: .15rem; overflow-x: auto; overflow-y: visible; }.sidebar-link { flex: 0 0 auto; margin: 0; white-space: nowrap; }.sidebar .mt-auto { display: flex; flex: 0 0 auto; margin: 0 !important; padding: 0 !important; }.sidebar .mt-auto hr, .sidebar .mt-auto .text-center, .sidebar .mt-auto .sidebar-account { display: none; }.content { padding: 1.2rem; } }
 @media print { .sidebar, .btn, .no-print { display: none !important; }.content { padding: 0; }.panel { border: 0; box-shadow: none; } }
 
 /* Senior reading controls and printable service reports. */

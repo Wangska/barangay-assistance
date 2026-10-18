@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   full_name VARCHAR(150) NOT NULL,
   email VARCHAR(150) NOT NULL UNIQUE,
   phone_number VARCHAR(30) NOT NULL,
+  profile_photo VARCHAR(255) NULL,
   password_hash VARCHAR(255) NOT NULL,
   status ENUM('Pending','Active','Inactive','Rejected') NOT NULL DEFAULT 'Pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -1,4 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.toast-container .toast').forEach((toast) => {
+    const delay = toast.classList.contains('text-bg-danger') || toast.classList.contains('text-bg-warning') ? 5000 : 2000;
+    window.setTimeout(() => {
+      toast.style.transition = 'opacity .25s ease';
+      toast.style.opacity = '0';
+      window.setTimeout(() => toast.remove(), 250);
+    }, delay);
+  });
+
   document.querySelectorAll('[data-confirm]').forEach((button) => {
     button.addEventListener('click', (event) => {
       if (!confirm(button.dataset.confirm)) event.preventDefault();

@@ -103,7 +103,7 @@ function require_login(): array
         if ($user['role_name'] !== 'Senior Citizen' || !in_array($user['status'], ['Pending','Rejected'],true)) {
             http_response_code(403); exit('This account is not active.');
         }
-        if (!in_array($path,['application.php','notifications.php','notification_count.php','mark_notification_read.php','requirement_file.php'],true)) {
+        if (!in_array($path,['application.php','notifications.php','notification_count.php','mark_notification_read.php','requirement_file.php','profile.php','profile_photo.php'],true)) {
             redirect('/senior/application.php');
         }
     }
@@ -210,6 +210,52 @@ function upload_valid_id(array $file): ?string
         throw new RuntimeException('Could not save uploaded file.');
     }
     return 'ids/' . $name;
+}
+
+function upload_profile_photo(array $file): ?string
+{
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    if (in_array($file['error'], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)
+        || ($file['size'] ?? 0) > MAX_UPLOAD_BYTES) {
+        throw new RuntimeException('The profile photo is too large. Choose a JPG, PNG, or WebP no larger than 2 MB.');
+    }
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('The profile photo upload did not finish. Please select the file and try again.');
+    }
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime = $finfo->file($file['tmp_name']);
+    $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+    if (!isset($allowed[$mime])) {
+        throw new RuntimeException('Only JPG, PNG, and WebP photos are accepted.');
+    }
+    if (!is_dir(UPLOAD_DIR . '/profiles')) {
+        mkdir(UPLOAD_DIR . '/profiles', 0775, true);
+    }
+    $name = bin2hex(random_bytes(16)) . '.' . $allowed[$mime];
+    $target = UPLOAD_DIR . '/profiles/' . $name;
+    if (!move_uploaded_file($file['tmp_name'], $target)) {
+        throw new RuntimeException('Could not save the profile photo.');
+    }
+    return 'profiles/' . $name;
+}
+
+function profile_photo_storage_path(?string $storedPath): ?string
+{
+    if ($storedPath === null || preg_match('#^profiles/[a-f0-9]{32}\.(?:jpg|png|webp)$#', $storedPath) !== 1) {
+        return null;
+    }
+    $path = UPLOAD_DIR . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $storedPath);
+    return is_file($path) ? $path : null;
+}
+
+function delete_profile_photo(?string $storedPath): void
+{
+    $path = profile_photo_storage_path($storedPath);
+    if ($path !== null) {
+        unlink($path);
+    }
 }
 
 function valid_id_storage_path(string $storedPath): ?string
