@@ -54,8 +54,8 @@ function application_record(int $userId, ?int $requestId = null): array
 function notification_destination(array $n, string $role): ?string
 {
     $prefix=$role==='Senior Citizen' ? '/senior' : ($role==='Administrator' ? '/admin' : '/staff');
-    if (!empty($n['assistance_request_id'])) return $prefix.'/application.php?request_id='.(int)$n['assistance_request_id'];
-    if (!empty($n['application_user_id'])) return $prefix.'/application.php'.($role==='Senior Citizen' ? '' : '?user_id='.(int)$n['application_user_id']);
+    if (!empty($n['assistance_request_id'])) return $role==='Senior Citizen' ? '/senior/requests.php' : $prefix.'/application.php?request_id='.(int)$n['assistance_request_id'];
+    if (!empty($n['application_user_id'])) return $role==='Senior Citizen' ? '/senior/dashboard.php' : $prefix.'/application.php?user_id='.(int)$n['application_user_id'];
     if (!empty($n['announcement_id'])) return $prefix.'/announcements.php#announcement-'.(int)$n['announcement_id'];
     if (str_contains($n['title'],'Announcement')) return $prefix.'/announcements.php';
     return null;
@@ -63,7 +63,7 @@ function notification_destination(array $n, string $role): ?string
 
 function translated_label(string $text): string
 {
-    $map=['Dashboard'=>'Pangunang panid','Application'=>'Aplikasyon','Profile'=>'Personal nga impormasyon','Notifications'=>'Mga pahibalo','Requests'=>'Mga hangyo','Announcements'=>'Mga anunsyo','Events'=>'Mga kalihokan','Logout'=>'Paggawas'];
+    $map=['Dashboard'=>'Pangunang panid','Application'=>'Aplikasyon','Profile'=>'Personal nga impormasyon','Notifications'=>'Mga pahibalo','Requests'=>'Mga hangyo','My Assistance Requests'=>'Akong mga hangyo sa tabang','Back to my requests'=>'Balik sa akong mga hangyo','Back to dashboard'=>'Balik sa dashboard','Announcements'=>'Mga anunsyo','Events'=>'Mga kalihokan','Logout'=>'Paggawas'];
     return '<span data-en="'.e($text).'" data-ceb="'.e($map[$text] ?? $text).'">'.e($text).'</span>';
 }
 

@@ -7,7 +7,7 @@ function registration_email_verified(string $email): bool {
     return isset($v['email'],$v['expires_at']) && $v['email'] === registration_email($email) && $v['expires_at'] > time();
 }
 function send_registration_code(string $email,string $code): bool {
-    return app_send_mail($email,'SeniorCare registration verification code',
+    return app_send_mail($email,'Senior Assist registration verification code',
         "Your registration code is: $code\n\nThis code expires in 10 minutes. Do not share it.\nIf you did not request an account, ignore this email.");
 
 }

@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 (int) $user['user_id']
             );
 
-            $destination = $user['status'] === 'Active' ? '/index.php' : '/senior/application.php';
+            $destination = $user['status'] === 'Active' ? '/index.php' : '/senior/dashboard.php';
             if ($embed) {
                 $destinationUrl = json_encode(BASE_URL . $destination, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
                 echo '<!doctype html><meta charset="utf-8"><script>window.top.location.href = ' . $destinationUrl . ';</script>';
@@ -84,7 +84,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <link
         rel="stylesheet"
-        href="assets/css/login.css?v=20261004d"
+        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+    >
+    <link
+        rel="stylesheet"
+        href="assets/css/login.css?v=20261027j"
     >
 
 </head>
@@ -97,13 +101,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <div class="shape2"></div>
 
+        <div class="login-photo">
+            <img src="assets/images/image.png" alt="Senior citizens using the barangay service">
+        </div>
+
         <div class="logo">
-            SeniorCare Portal
+            <img class="logo-mark" src="assets/images/seniorlogo.png" alt="">
+            <span>Senior Assist<small>Barangay Tungkil</small></span>
         </div>
 
         <div class="login-card">
 
-                <h2>SeniorCare<br>Services</h2>
+                <img class="card-logo" src="assets/images/seniorlogo.png" alt="Senior Assist">
+                <p class="welcome-back">Welcome back</p>
 
             <?php if ($error): ?>
 
@@ -142,12 +152,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         required
                     >
 
-                    <span
+                    <button
+                        type="button"
                         class="toggle-password"
                         onclick="togglePassword()"
+                        aria-label="Show password"
+                        aria-pressed="false"
                     >
-                        👁️
-                    </span>
+                        <i class="bi bi-eye" aria-hidden="true"></i>
+                    </button>
 
                 </div>
 
@@ -198,22 +211,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
 
         function togglePassword() {
-
             const password = document.getElementById("password");
-            const eye = document.querySelector(".toggle-password");
-
-            if (password.type === "password") {
-
-                password.type = "text";
-                eye.innerHTML = "🙈";
-
-            } else {
-
-                password.type = "password";
-                eye.innerHTML = "👁️";
-
-            }
-
+            const button = document.querySelector(".toggle-password");
+            const icon = button.querySelector("i");
+            const visible = password.type === "password";
+            password.type = visible ? "text" : "password";
+            icon.className = visible ? "bi bi-eye-slash" : "bi bi-eye";
+            button.setAttribute("aria-label", visible ? "Hide password" : "Show password");
+            button.setAttribute("aria-pressed", visible ? "true" : "false");
         }
 
         const createAccount = document.getElementById('create-account');

@@ -53,7 +53,9 @@ function render_requests_page(array $roles): void {
 <?php foreach($rows as $r): ?>
 <article class="panel mb-3" id="request-<?= (int)$r['request_id'] ?>">
 <h2 class="h5">#<?= (int)$r['request_id'] ?> · <?= e($r['full_name']) ?> · <?= e($r['request_type']) ?></h2>
-<p><?= e($r['description']) ?></p><p><strong><?= e($r['status']) ?></strong> · <a href="<?= BASE_URL.$prefix ?>/application.php?request_id=<?= (int)$r['request_id'] ?>">Timeline and release details</a></p>
+<p><?= e($r['description']) ?></p>
+<?php if (!empty($r['supporting_document'])): ?><p><a class="btn btn-sm btn-outline-primary" href="<?= BASE_URL ?>/api/request_document.php?request_id=<?= (int)$r['request_id'] ?>">View supporting document</a></p><?php else: ?><p class="text-muted">No supporting document</p><?php endif; ?>
+<p><strong><?= e($r['status']) ?></strong> · <a href="<?= BASE_URL.$prefix ?>/application.php?request_id=<?= (int)$r['request_id'] ?>">Timeline and release details</a></p>
 <?php if($r['status']!=='Completed'): ?>
 <form method="post" class="row g-2 mb-3">
 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="request_id" value="<?= (int)$r['request_id'] ?>">

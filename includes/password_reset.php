@@ -10,7 +10,7 @@ function reset_mail_ready(): bool
 
 function send_reset_code(string $email, string $code): bool
 {
-    return app_send_mail($email, 'SeniorCare password verification code',
+    return app_send_mail($email, 'Senior Assist password verification code',
         "Your password reset code is: $code\n\nThis code expires in 10 minutes. Do not share it with anyone.\nIf you did not request a password reset, ignore this email.");
 }
 // Lock the account first so requests and redemptions serialize across browsers.

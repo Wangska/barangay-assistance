@@ -83,12 +83,17 @@ function render_application_page(array $roles): void
     $requirements=db()->prepare('SELECT * FROM application_requirements WHERE user_id=? ORDER BY requirement_id');
     $requirements->execute([$userId]);
     require __DIR__.'/../includes/header.php'; require __DIR__.'/../includes/sidebar.php';
+    $seniorBackHref = BASE_URL . ($requestId ? '/senior/requests.php' : '/senior/dashboard.php');
+    $seniorBackLabel = $requestId ? 'Back to my requests' : 'Back to dashboard';
 ?>
+<?php if ($isSenior): ?>
+<a class="btn btn-outline-primary mb-3 d-inline-flex align-items-center gap-2" href="<?= e($seniorBackHref) ?>"><i class="bi bi-arrow-left" aria-hidden="true"></i> <?= translated_label($seniorBackLabel) ?></a>
+<?php endif; ?>
 <h1 class="page-title" data-en="Application tracking" data-ceb="Pagsubay sa aplikasyon">Application tracking</h1>
 <div class="panel mb-3">
 <h2 class="h5"><?= e($record['full_name']) ?> — <?= $requestId ? 'Request #'.$requestId : 'Registration #'.$userId ?></h2>
 <p>Current status: <strong><?= e($record['status']) ?></strong></p>
-<?php if ($requestId): ?><p><?= e($record['request_type']) ?>: <?= e($record['description']) ?></p><?php endif; ?>
+<?php if ($requestId): ?><p><?= e($record['request_type']) ?>: <?= e($record['description']) ?></p><?php if (!empty($record['supporting_document'])): ?><p><a class="btn btn-outline-primary" href="<?= BASE_URL ?>/api/request_document.php?request_id=<?= (int)$requestId ?>">View supporting document</a></p><?php endif; ?><?php endif; ?>
 </div>
 <?php if (!$requestId && !$isSenior):
 $duplicates=duplicate_seniors($userId);

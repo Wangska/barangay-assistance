@@ -23,5 +23,5 @@
 .auth-card .form-check { padding: .9rem .9rem .9rem 2.25rem; color: #55707a; font-size: .84rem; line-height: 1.55; background: #f2faf7; border: 1px solid #d9ede7; border-radius: 11px; }.auth-card .form-check-input { margin-top: .28rem; }.auth-card .form-check-input:checked { background-color: var(--teal); border-color: var(--teal); }
 @media (max-width: 576px) { .auth-wrap { padding: 1rem .5rem !important; }.auth-card { border-radius: 18px; }.registration-heading h1 { font-size: 1.8rem; } }
 body.registration-embed { background: #f4f8f7; }
-body.registration-embed .auth-wrap { min-height: auto; padding: .75rem !important; }
+body.registration-embed .auth-wrap { min-height: auto; padding: 3.4rem .75rem .75rem !important; }
 body.registration-embed .auth-wrap::before, body.registration-embed .auth-wrap::after { display: none; }

@@ -97,7 +97,7 @@ try {
     check(db()->query("SELECT status FROM users WHERE user_id=$pendingId")->fetchColumn()==='Active','Approval succeeds after checklist and duplicate review');
     check(str_contains(http($senior,'/senior/application.php')[1],'Approved'),'Senior timeline includes approval');
     http($senior,'/senior/requests.php');
-    post_action($senior,'/senior/requests.php',['request_type'=>'Food Assistance','description'=>'Food support']);
+    post_action($senior,'/senior/requests.php',['request_type'=>'Food Assistance','description'=>'Food support'],['field'=>'document','bytes'=>$png]);
     $requestId=(int)db()->query('SELECT MAX(request_id) FROM assistance_requests')->fetchColumn();
     check($requestId>0,'Senior assistance submission works');
     check(http($other,'/senior/application.php?request_id='.$requestId)[0]===404,'Other senior cannot read request timeline');

@@ -41,7 +41,7 @@ function app_send_mail(string $email, string $subject, string $body): bool
     $curl = null;
     try {
         $message = 'Date: ' . date(DATE_RFC2822) . "\r\n"
-            . 'From: SeniorCare <' . $config['from'] . ">\r\n"
+            . 'From: Senior Assist <' . $config['from'] . ">\r\n"
             . 'To: <' . $email . ">\r\n"
             . 'Subject: ' . $subject . "\r\n"
             . "MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n"

@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS assistance_requests (
   senior_id INT NOT NULL,
   request_type VARCHAR(100) NOT NULL,
   description TEXT NOT NULL,
+  supporting_document VARCHAR(255) NULL,
   status ENUM('Pending','Under Review','Approved','Rejected','Scheduled','Completed') NOT NULL DEFAULT 'Pending',
   schedule_date DATETIME NULL,
   remarks TEXT,

@@ -13,13 +13,13 @@ $menus = [
 
         ['Dashboard', '/admin/dashboard.php', 'bi-speedometer2'],
         ['Users', '/admin/users.php', 'bi-people'],
-        ['Registrations', '/admin/registrations.php', 'bi-person-check'],
         ['Seniors', '/admin/seniors.php', 'bi-person-hearts'],
         ['Requests', '/admin/requests.php', 'bi-clipboard2-pulse'],
         ['Announcements', '/admin/announcements.php', 'bi-broadcast'],
         ['Events', '/admin/events.php', 'bi-calendar-event'],
         ['Reports', '/admin/reports.php', 'bi-file-earmark-bar-graph'],
-        ['SMS Logs', '/admin/sms_logs.php', 'bi-chat-dots'],
+        ['Send SMS', '/admin/sms.php', 'bi-chat-dots'],
+        ['SMS Logs', '/admin/sms_logs.php', 'bi-chat-left-text'],
         ['Audit Logs', '/admin/audit_logs.php', 'bi-shield-check']
 
     ],
@@ -40,8 +40,7 @@ $menus = [
     'Senior Citizen' => [
 
         ['Dashboard', '/senior/dashboard.php', 'bi-speedometer2'],
-        ['Application', '/senior/application.php', 'bi-list-check'],
-        ['Requests', '/senior/requests.php', 'bi-clipboard-plus'],
+        ['My Assistance Requests', '/senior/requests.php', 'bi-clipboard-plus'],
         ['Announcements', '/senior/announcements.php', 'bi-broadcast'],
         ['Events', '/senior/events.php', 'bi-calendar-event']
 
@@ -54,7 +53,7 @@ $menus = [
 
 <?php if ($role === 'Senior Citizen' && $u['status'] !== 'Active') {
     $menus[$role] = [
-        ['Application','/senior/application.php','bi-list-check']
+        ['Dashboard','/senior/dashboard.php','bi-speedometer2']
     ];
 } ?>
 <div class="app-shell">
@@ -63,8 +62,8 @@ $menus = [
     <aside id="main-navigation" class="sidebar d-flex flex-column" aria-label="Main navigation">
 
         <div class="sidebar-title">
-            <span class="sidebar-mark"><i class="bi bi-heart-pulse-fill"></i></span>
-            <span>SeniorCare<small>Barangay Services</small></span>
+            <span class="sidebar-mark"><img src="<?= BASE_URL ?>/assets/images/seniorlogo.png" alt=""></span>
+            <span>Senior Assist<small>Barangay Tungkil</small></span>
         </div>
 
         <?php foreach (($menus[$role] ?? []) as [$label, $href, $icon]): ?>
@@ -148,7 +147,8 @@ $menus = [
 
     <main class="content">
     <?php if ($role==='Senior Citizen'): ?>
-    <div class="accessibility-controls no-print d-flex flex-wrap gap-3 align-items-end mb-3" aria-label="Reading preferences">
+    <div class="page-tools no-print">
+    <div class="accessibility-controls d-flex flex-wrap gap-3 align-items-end" aria-label="Reading preferences">
         <label><span data-en="Interface language" data-ceb="Pinulongan sa interface">Interface language</span>
             <select id="interface-language" class="form-select"><option value="en">English</option><option value="ceb">Cebuano</option></select>
         </label>
@@ -166,7 +166,7 @@ $menus = [
         $recentNotifications->execute([$u['user_id']]);
         $recentNotifications = $recentNotifications->fetchAll();
         ?>
-        <div class="d-flex justify-content-end mb-3">
+        <?php if ($role !== 'Senior Citizen'): ?><div class="d-flex justify-content-end mb-3"><?php endif; ?>
             <div class="dropdown notification-menu">
                 <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
                     <i class="bi bi-bell" aria-hidden="true"></i> <?= translated_label('Notifications') ?>
@@ -196,5 +196,8 @@ $menus = [
                     <a class="notification-all" href="<?= BASE_URL . $notificationPage ?>"><span data-en="View all notifications" data-ceb="Tan-awa ang tanang pahibalo">View all notifications</span></a>
                 </div>
             </div>
-        </div>
+        <?php if ($role !== 'Senior Citizen'): ?></div><?php endif; ?>
+    <?php endif; ?>
+    <?php if ($role==='Senior Citizen'): ?>
+    </div>
     <?php endif; ?>
