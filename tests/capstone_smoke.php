@@ -38,7 +38,12 @@ function http(array &$session,string $path,?array $data=null,?array $upload=null
             $boundary='Boundary'.bin2hex(random_bytes(8));
             $headers[]='Content-Type: multipart/form-data; boundary='.$boundary;
             foreach($data as $key=>$value)$content.="--$boundary\r\nContent-Disposition: form-data; name=\"$key\"\r\n\r\n$value\r\n";
-            $content.="--$boundary\r\nContent-Disposition: form-data; name=\"".$upload['field']."\"; filename=\"id.png\"\r\nContent-Type: image/png\r\n\r\n".$upload['bytes']."\r\n--$boundary--\r\n";
+            $files=isset($upload['field'])?[$upload]:$upload;
+            foreach($files as $file){
+                $filename=$file['filename']??'id.png';
+                $content.="--$boundary\r\nContent-Disposition: form-data; name=\"".$file['field']."\"; filename=\"$filename\"\r\nContent-Type: image/png\r\n\r\n".$file['bytes']."\r\n";
+            }
+            $content.="--$boundary--\r\n";
         } else { $headers[]='Content-Type: application/x-www-form-urlencoded';$content=http_build_query($data); }
     }
     $context=stream_context_create(['http'=>['method'=>$data===null?'GET':'POST','header'=>implode("\r\n",$headers),'content'=>$content,'ignore_errors'=>true,'follow_location'=>0,'timeout'=>15]]);
@@ -130,18 +135,18 @@ try {
     check(http($staff,'/api/mark_notification_read.php',['notification_id'=>$note,'csrf_token'=>'wrong'])[0]===419,'CSRF protects notification mutation');
     $signup=[];
     http($signup,'/register.php');
-    $form=['first_name'=>'New','last_name'=>'Senior','region'=>'Region IV-A (CALABARZON)','province'=>'Cavite','city_municipality'=>'City of Bacoor','address'=>'Test address','phone_number'=>'09171234567','email'=>'newsenior@example.invalid','password'=>$password,'password_confirmation'=>$password,'birthdate'=>'1950-01-01','place_of_birth'=>'City','gender'=>'Female','civil_status'=>'Single','blood_type'=>'O+','religion'=>'Religion','education'=>'College','employment_status'=>'Retired','classification'=>'Pensioner','emergency_contact_name'=>'Contact','emergency_contact_phone'=>'09171234568','terms_accepted'=>'1'];
+    $form=['first_name'=>'New','last_name'=>'Senior','address'=>'Test address','sitio'=>'Sitio 1','phone_number'=>'09171234567','email'=>'newsenior@example.invalid','password'=>$password,'password_confirmation'=>$password,'birthdate'=>'1950-01-01','place_of_birth'=>'City','gender'=>'Female','civil_status'=>'Single','occupation'=>'Retired','is_pensioner'=>'No','dependent_children'=>'0','living_type'=>'Owned','beneficiary_name'=>'Ana','beneficiary_address'=>'Purok 1','emergency_contact_name'=>'Contact','emergency_contact_phone'=>'09171234568','emergency_contact_address'=>'Purok 2','facebook_account'=>'senior.fb','terms_accepted'=>'1'];
     post_action($signup,'/register.php',$form,['field'=>'valid_id','bytes'=>str_repeat('x', 2 * 1024 * 1024 + 1)]);
     $rejected=http($signup,'/register.php');
     check(str_contains($rejected[1], 'Your ID file is too large'), 'Oversized registration ID shows actionable error');
-    check(str_contains($rejected[1], 'value="newsenior@example.invalid"') && str_contains($rejected[1], '>Test address</textarea>') && str_contains($rejected[1], ' selected>Female'), 'Registration retains text and selected fields after upload failure');
+    check(str_contains($rejected[1], 'value="newsenior@example.invalid"') && str_contains($rejected[1], 'value="Test address"') && str_contains($rejected[1], ' selected>Female'), 'Registration retains text and selected fields after upload failure');
     check(!str_contains($rejected[1], $password), 'Registration never repopulates passwords');
     check((int)db()->query("SELECT COUNT(*) FROM users WHERE email='newsenior@example.invalid'")->fetchColumn()===0, 'Rejected upload creates no account');
     post_action($signup,'/register.php',$form,['field'=>'valid_id','bytes'=>'not an image']);
     check(str_contains(http($signup,'/register.php')[1], 'Only JPG, PNG, and PDF'), 'Invalid ID content shows file type error');
     post_action($signup,'/register.php',$form);
     check(str_contains(http($signup,'/register.php')[1], 'Please select a valid identification file'), 'Registration requires an ID on the server');
-    post_action($signup,'/register.php',$form,['field'=>'valid_id','bytes'=>$png]);
+    post_action($signup,'/register.php',$form,[['field'=>'valid_id','bytes'=>$png,'filename'=>'id.png'],['field'=>'photo','bytes'=>$png,'filename'=>'photo.png']]);
     $newId=(int)db()->query("SELECT user_id FROM users WHERE email='newsenior@example.invalid'")->fetchColumn();
     check($newId>0,'Public registration creates pending applicant');
     check((int)db()->query("SELECT COUNT(*) FROM application_events WHERE user_id=$newId")->fetchColumn()===1,'Registration creates initial timeline event');

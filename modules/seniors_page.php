@@ -41,7 +41,6 @@ function render_seniors_page(array $roles): void
                 } elseif ($isAdmin && valid_id_storage_path((string) $r['valid_id_path']) !== null) {
                     $idUrl = BASE_URL . '/admin/download_id.php?senior_id=' . (int) $r['senior_id'];
                 }
-                $pension = $r['monthly_pension'];
                 $government = array_filter([
                     'GSIS' => trim((string) $r['gsis_no']),
                     'SSS' => trim((string) $r['sss_no']),
@@ -51,32 +50,35 @@ function render_seniors_page(array $roles): void
                 $sections = [
                     ['Personal', [
                         ['Full name', $r['full_name']],
-                        ['Email', $blank($r['email'])],
-                        ['Phone', $blank($r['phone_number'])],
-                        ['Telephone', $blank($r['telephone'])],
-                        ['Birthdate', $r['birthdate'] ? date('M j, Y', strtotime($r['birthdate'])) : '—'],
-                        ['Gender', $blank($r['gender'])],
+                        ['Date of birth', $r['birthdate'] ? date('M j, Y', strtotime($r['birthdate'])) : '—'],
                         ['Place of birth', $blank($r['place_of_birth'])],
+                        ['Sex', $blank($r['gender'])],
                         ['Civil status', $blank($r['civil_status'])],
-                        ['Blood type', $blank($r['blood_type'])],
-                        ['Religion', $blank($r['religion'])],
-                        ['Education', $blank($r['education'])],
-                        ['Employment', $blank($r['employment_status'])],
-                        ['Classification', $blank($r['classification'])],
-                        ['Monthly pension', $pension === null || $pension === '' ? '—' : 'PHP ' . number_format((float) $pension, 2)],
+                        ['Profession / skills', $blank($r['occupation'] ?? '')],
+                        ['Dependent children below 18', ($r['dependent_children'] ?? '') === '' || $r['dependent_children'] === null ? '—' : (string) $r['dependent_children']],
+                        ['Type of living', $blank($r['living_type'] ?? '')],
+                        ['Receiving financial support', $blank($r['is_pensioner'] ?? '')],
+                        ['Name of pension received', $blank($r['pension_source'] ?? '')],
+                        ['Sign-in email', $blank($r['email'])],
                         ['Account status', $blank($r['status'])],
                         ['Joined', $r['joined_at'] ? date('M j, Y', strtotime($r['joined_at'])) : '—'],
                     ]],
-                    ['Address', [
-                        ['Region', $blank($r['region'])],
-                        ['Province', $blank($r['province'])],
-                        ['City / municipality', $blank($r['city_municipality'])],
+                    ['Address and contact', [
+                        ['Purok / Sitio', $blank(trim($r['address'] . ((trim((string) ($r['sitio'] ?? '')) !== '') ? ', ' . $r['sitio'] : '')))],
                         ['Barangay', $blank($r['barangay'])],
-                        ['Purok address', $blank($r['address'])],
+                        ['Municipality', $blank($r['city_municipality'])],
+                        ['Province', $blank($r['province'])],
+                        ['Contact number', $blank($r['phone_number'])],
+                        ['FB account', $blank($r['facebook_account'] ?? '')],
                     ]],
-                    ['Emergency contact', [
+                    ['Beneficiary', [
+                        ['Name', $blank($r['beneficiary_name'] ?? '')],
+                        ['Address', $blank($r['beneficiary_address'] ?? '')],
+                    ]],
+                    ['In case of emergency', [
                         ['Name', $blank($r['emergency_contact_name'])],
-                        ['Phone', $blank($r['emergency_contact_phone'])],
+                        ['Address', $blank($r['emergency_contact_address'] ?? '')],
+                        ['Contact number', $blank($r['emergency_contact_phone'])],
                     ]],
                 ];
                 if ($government) {
