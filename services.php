@@ -28,7 +28,7 @@ require_once __DIR__ . '/includes/functions.php';
         <h2>Medical assistance</h2>
         <p>Use this when you need help with medicine, a checkup, or other health support from the barangay. You describe what you need from home instead of making a trip only to ask.</p>
         <ul>
-            <li><b>&check;</b> Choose Medical Assistance or Medicine Support when you submit a request.</li>
+            <li><b>&check;</b> Choose Medical/Financial Assistance when you submit a request.</li>
             <li><b>&check;</b> Write what you need so staff know how to review it.</li>
             <li><b>&check;</b> Follow the status, and see the schedule if a visit or release is set.</li>
         </ul>
@@ -39,7 +39,7 @@ require_once __DIR__ . '/includes/functions.php';
         <h2>Financial assistance</h2>
         <p>Use this to ask about barangay aid you may qualify for. The request tells staff what kind of support you are seeking so they can review it and reply with the next step.</p>
         <ul>
-            <li><b>&check;</b> Choose Financial Assistance and describe your situation.</li>
+            <li><b>&check;</b> Choose Medical/Financial Assistance and describe your situation.</li>
             <li><b>&check;</b> Staff review the request before any aid is scheduled or released.</li>
             <li><b>&check;</b> Check your account for the status and any remarks.</li>
         </ul>

@@ -44,18 +44,22 @@ document.addEventListener('DOMContentLoaded', () => {
     'Announcements':'Mga anunsyo', 'Notifications':'Mga pahibalo', 'Requirements checklist':'Lista sa mga kinahanglan',
     'Mark all as read':'Markahi ang tanan nga nabasa', 'Mark as read':'Markahi nga nabasa',
     'View details':'Tan-awa ang detalye', 'View announcements':'Tan-awa ang mga anunsyo',
-    'View my requests':'Tan-awa ang akong mga hangyo', 'Submit Request':'Isumite ang hangyo', 'Submit a Request':'Isumite og hangyo',
-    'Supporting document':'Dokumento nga pamatuod', 'View supporting document':'Tan-awa ang dokumento nga pamatuod', 'Cancel':'Kanselahon',
-    'Assistance type':'Matang sa tabang',
+    'View my requests':'Tan-awa ang akong mga hangyo', 'Submit Request':'Isumite ang hangyo', 'Submit a Request':'Isumite og hangyo', 'Submitting...':'Gipadala...',
+    'Supporting document':'Dokumento nga pamatuod', 'View supporting document':'Tan-awa ang dokumento nga pamatuod',
+    'Supporting Documents/ Medical Prescription':'Mga dokumento nga pamatuod / reseta',
+    'View supporting document / medical prescription':'Tan-awa ang dokumento nga pamatuod / reseta', 'Cancel':'Kanselahon',
+    'Assistance type':'Matang sa tabang', 'Reason for requesting assistance':'Rason sa hangyo',
+    'Pension status':'Kahimtang sa pensyon', 'Pension provider':'Gigikanan sa pensyon',
+    'Monthly pension amount':'Binulan nga pensyon', 'Financial status':'Kahimtang sa kwarta',
+    'Released':'Gipagawas', 'Requested':'Gipangayo', 'Reason':'Rason',
     'Save Profile':'I-save ang impormasyon', 'View submitted document':'Tan-awa ang gisumite nga dokumento',
-    'Track application':'Subaya ang aplikasyon', 'Previous':'Miagi', 'Next':'Sunod', 'Filter':'Salain',
+    'Track application':'Subaya ang aplikasyon', 'Close':'Sirado', 'Application tracking':'Pagsubay sa aplikasyon', 'Application timeline':'Kasaysayan sa aplikasyon', 'Previous':'Miagi', 'Next':'Sunod', 'Filter':'Salain',
     'Full Name':'Kompletong ngalan', 'Phone':'Telepono', 'Address':'Puy-anan',
     'Emergency Contact':'Kontakon sa emerhensiya', 'Emergency Phone':'Numero sa emerhensiya',
     'Valid ID':'Balidong ID', 'Medical Notes':'Mga medikal nga nota', 'All notifications':'Tanang pahibalo',
     'Unread':'Wala pa mabasa', 'Read':'Nabasa', 'No notifications yet.':'Wala pay pahibalo.',
     'Type':'Matang', 'Description':'Detalye', 'Status':'Kahimtang', 'Schedule':'Eskedyul', 'Remarks':'Mga nota',
-    'Request History':'Kasaysayan sa mga hangyo', 'Profile Status':'Kahimtang sa account',
-    'Application tracking':'Pagsubay sa aplikasyon', 'Application timeline':'Kasaysayan sa aplikasyon'
+    'Request History':'Kasaysayan sa mga hangyo', 'Profile Status':'Kahimtang sa account'
   };
   if (language) {
     // Only translate known interface text; never translate submitted records.

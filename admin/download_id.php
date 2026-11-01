@@ -19,11 +19,12 @@ if ($path === null) {
     exit('The secure ID file is not available.');
 }
 
-$extension = pathinfo($path, PATHINFO_EXTENSION);
-$mimeTypes = ['jpg' => 'image/jpeg', 'png' => 'image/png', 'pdf' => 'application/pdf'];
+$extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+$mimeTypes = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'pdf' => 'application/pdf'];
 audit_log((int) $user['user_id'], 'Viewed secure valid ID', 'senior_citizens', $seniorId);
-header('Content-Type: ' . $mimeTypes[$extension]);
+header('X-Frame-Options: SAMEORIGIN');
+header('Content-Type: ' . ($mimeTypes[$extension] ?? 'application/octet-stream'));
 header('Content-Length: ' . (string) filesize($path));
-header('Content-Disposition: attachment; filename="senior-valid-id-' . $seniorId . '.' . $extension . '"');
+header('Content-Disposition: inline; filename="senior-valid-id-' . $seniorId . '.' . $extension . '"');
 header('Cache-Control: private, no-store, max-age=0');
 readfile($path);

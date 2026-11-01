@@ -51,6 +51,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$existing) {
             $redirectUsers('danger', 'That user could not be found.');
         }
+        if (isset($_POST['deceased_toggle'])) {
+            $seniorQuery = db()->prepare('SELECT senior_id, is_deceased FROM senior_citizens WHERE user_id = ?');
+            $seniorQuery->execute([$targetUserId]);
+            $senior = $seniorQuery->fetch();
+            if ($existing['role_name'] !== 'Senior Citizen' || !$senior || !death_assistance_already_requested((int) $senior['senior_id'])) {
+                $redirectUsers('danger', 'Only a senior with a death assistance request can be marked deceased.');
+            }
+            $markDeceased = ($_POST['deceased'] ?? '0') === '1';
+            if ($markDeceased) {
+                db()->prepare('UPDATE senior_citizens SET is_deceased = 1, deceased_at = NOW() WHERE senior_id = ?')->execute([(int) $senior['senior_id']]);
+                db()->prepare("UPDATE users SET status = 'Inactive' WHERE user_id = ?")->execute([$targetUserId]);
+                audit_log((int) $user['user_id'], 'Marked senior deceased', 'users', $targetUserId);
+                $redirectUsers('success', 'Account marked deceased and set to inactive.');
+            }
+            db()->prepare('UPDATE senior_citizens SET is_deceased = 0, deceased_at = NULL WHERE senior_id = ?')->execute([(int) $senior['senior_id']]);
+            db()->prepare("UPDATE users SET status = 'Active' WHERE user_id = ? AND status = 'Inactive'")->execute([$targetUserId]);
+            audit_log((int) $user['user_id'], 'Restored deceased senior account', 'users', $targetUserId);
+            $redirectUsers('success', 'Account restored to active.');
+        }
         if (isset($_POST['delete'])) {
             if ($targetUserId === (int) $user['user_id']) {
                 $redirectUsers('danger', 'You cannot remove your own account.');
@@ -96,6 +115,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $roles = db()->query("SELECT * FROM roles WHERE role_name <> 'Senior Citizen' ORDER BY role_name")->fetchAll();
 $rows = db()->query("SELECT u.*, r.role_name FROM users u JOIN roles r ON r.role_id = u.role_id WHERE u.status <> 'Inactive' ORDER BY u.created_at DESC")->fetchAll();
+$deathAccounts = db()->query("
+    SELECT u.user_id, u.full_name, u.email, u.phone_number, u.status, s.is_deceased, s.deceased_at,
+           ar.status AS death_status, ar.created_at AS death_requested_at
+    FROM senior_citizens s
+    JOIN users u ON u.user_id = s.user_id
+    JOIN assistance_requests ar ON ar.request_id = (
+        SELECT MAX(request_id) FROM assistance_requests
+        WHERE senior_id = s.senior_id AND request_type = 'Death Assistance' AND status <> 'Rejected'
+    )
+    ORDER BY s.is_deceased DESC, ar.created_at DESC
+")->fetchAll();
+$deathUserIds = [];
+foreach ($deathAccounts as $account) {
+    $deathUserIds[(int) $account['user_id']] = $account;
+}
+$deceasedToggle = static function (array $account, string $suffix) {
+    $checked = (int) ($account['is_deceased'] ?? 0) === 1;
+    $inputId = 'deceased-' . $suffix . '-' . (int) $account['user_id'];
+    ?>
+    <form method="post" class="deceased-toggle mb-0">
+        <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+        <input type="hidden" name="deceased_toggle" value="1">
+        <input type="hidden" name="user_id" value="<?= (int) $account['user_id'] ?>">
+        <input type="hidden" name="deceased" value="0">
+        <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" role="switch" id="<?= e($inputId) ?>" name="deceased" value="1" data-deceased-toggle data-user-name="<?= e($account['full_name']) ?>" <?= $checked ? 'checked' : '' ?>>
+            <label class="form-check-label" for="<?= e($inputId) ?>">Deceased</label>
+        </div>
+    </form>
+    <?php
+};
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
 ?>
@@ -121,8 +171,35 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <?php if ((int) $r['user_id'] !== (int) $user['user_id']): ?>
                             <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#delete-user" data-user-id="<?= (int) $r['user_id'] ?>" data-user-name="<?= e($r['full_name']) ?>">Delete</button>
                         <?php endif; ?>
+                        <?php if (isset($deathUserIds[(int) $r['user_id']])) { $deceasedToggle($deathUserIds[(int) $r['user_id']], 'users'); } ?>
                     </div>
                 </td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 mt-4">
+    <h2 class="h4 mb-0">Deceased seniors</h2>
+</div>
+<p class="text-muted">A senior is listed here after filing a death assistance request. Turn on Deceased to set that account to inactive.</p>
+<div class="panel table-responsive">
+    <table class="table align-middle">
+        <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Death assistance</th><th>Requested</th><th>Account</th><th>Deceased</th></tr></thead>
+        <tbody>
+        <?php if (!$deathAccounts): ?>
+            <tr><td colspan="7" class="text-muted">No senior has filed a death assistance request.</td></tr>
+        <?php endif; ?>
+        <?php foreach ($deathAccounts as $account): ?>
+            <tr>
+                <td><?= e($account['full_name']) ?></td>
+                <td><?= e($account['email']) ?></td>
+                <td><?= e($account['phone_number']) ?></td>
+                <td><?= e(request_status_label((string) $account['death_status'])) ?></td>
+                <td><?= e(date('M j, Y g:i A', strtotime($account['death_requested_at']))) ?></td>
+                <td><span class="badge text-bg-secondary"><?= (int) $account['is_deceased'] === 1 ? 'Inactive' : e($account['status']) ?></span></td>
+                <td><?php $deceasedToggle($account, 'list'); ?></td>
             </tr>
         <?php endforeach; ?>
         </tbody>
@@ -186,6 +263,16 @@ require_once __DIR__ . '/../includes/sidebar.php';
     </div>
 </div>
 
+<div class="modal fade" id="deceased-user" tabindex="-1" aria-labelledby="deceased-user-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h2 class="modal-title h5" id="deceased-user-title">Mark as deceased</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body"><p class="mb-0" id="deceased-modal-text"></p></div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-danger" id="deceased-confirm">Mark deceased</button></div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="delete-user" tabindex="-1" aria-labelledby="delete-user-title" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <form method="post" class="modal-content">
@@ -231,5 +318,40 @@ document.getElementById('delete-user').addEventListener('show.bs.modal', (event)
     document.getElementById('delete-id').value = button.dataset.userId;
     document.getElementById('delete-name').textContent = button.dataset.userName;
 });
+(() => {
+    const modalElement = document.getElementById('deceased-user');
+    const title = document.getElementById('deceased-user-title');
+    const text = document.getElementById('deceased-modal-text');
+    const confirmButton = document.getElementById('deceased-confirm');
+    let pendingToggle = null;
+    let confirmed = false;
+    document.querySelectorAll('[data-deceased-toggle]').forEach((input) => {
+        input.addEventListener('change', () => {
+            pendingToggle = input;
+            confirmed = false;
+            const marking = input.checked;
+            const name = document.createElement('strong');
+            name.textContent = input.dataset.userName;
+            title.textContent = marking ? 'Mark as deceased' : 'Restore account';
+            text.replaceChildren();
+            text.append(marking ? 'Mark ' : 'Restore ', name, marking
+                ? ' as deceased and set the account to inactive? They will no longer be able to sign in.'
+                : ' and set the account back to active?');
+            confirmButton.textContent = marking ? 'Mark deceased' : 'Restore account';
+            confirmButton.className = marking ? 'btn btn-danger' : 'btn btn-primary';
+            bootstrap.Modal.getOrCreateInstance(modalElement).show();
+        });
+    });
+    confirmButton.addEventListener('click', () => {
+        if (!pendingToggle) return;
+        confirmed = true;
+        pendingToggle.form.requestSubmit();
+    });
+    modalElement.addEventListener('hidden.bs.modal', () => {
+        if (!confirmed && pendingToggle) pendingToggle.checked = !pendingToggle.checked;
+        pendingToggle = null;
+        confirmed = false;
+    });
+})();
 </script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

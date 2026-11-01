@@ -22,21 +22,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
 
         $stmt = db()->prepare("
-            SELECT u.*, r.role_name
+            SELECT u.*, r.role_name, s.is_deceased
             FROM users u
             JOIN roles r ON r.role_id = u.role_id
+            LEFT JOIN senior_citizens s ON s.user_id = u.user_id
             WHERE u.email = ?
             LIMIT 1
         ");
 
         $stmt->execute([$email]);
         $user = $stmt->fetch();
+        $passwordMatches = $user && password_verify($password, $user['password_hash']);
+        $canSignIn = $passwordMatches && (
+            $user['status'] === 'Active'
+            || ($user['role_name'] === 'Senior Citizen' && in_array($user['status'], ['Pending', 'Rejected'], true))
+        );
 
-        if (
-            $user &&
-            password_verify($password, $user['password_hash']) &&
-            ($user['status'] === 'Active' || ($user['role_name'] === 'Senior Citizen' && in_array($user['status'], ['Pending','Rejected'], true)))
-        ) {
+        if ($canSignIn) {
 
             session_regenerate_id(true);
 
@@ -57,6 +59,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             }
             redirect($destination);
+
+        } elseif ($passwordMatches && (int) ($user['is_deceased'] ?? 0) === 1) {
+
+            $error = "This account is inactive because the senior is recorded as deceased. Please contact the barangay office if this is a mistake.";
+
+        } elseif ($passwordMatches && $user['status'] === 'Inactive') {
+
+            $error = "This account is inactive. Please contact the barangay office.";
 
         } else {
 

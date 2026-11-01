@@ -33,31 +33,13 @@ function render_application_page(array $roles): void
                 if ($currentStatus==='Rejected') $pdo->prepare("UPDATE users SET status='Pending' WHERE user_id=?")->execute([$userId]);
                 application_event($userId,null,'Document submitted',$requirement['label'].' submitted for review.',(int)$viewer['user_id']);
                 notify_barangay_staff('New Senior Registration',$record['full_name'].' submitted a requirement for review.',$userId);
-            } elseif (!$isSenior && $action==='add_requirement') {
-                $label=trim($_POST['label'] ?? '');
-                if ($label==='' || strlen($label)>150) throw new RuntimeException('Enter a requirement name up to 150 characters.');
-                $pdo->prepare('INSERT INTO application_requirements (user_id,label,remarks) VALUES (?,?,?)')->execute([$userId,$label,$remarks]);
-                application_event($userId,null,'Requirement requested',$label.': '.$remarks,(int)$viewer['user_id']);
-                notify_user($userId,'Registration Requirements','Please submit: '.$label.'. '.$remarks,$userId);
-            } elseif (!$isSenior && $action==='review_requirement') {
-                $status=$_POST['requirement_status'] ?? '';
-                if (!in_array($status,['Accepted','Needs replacement'],true) || ($status==='Needs replacement' && $remarks==='')) throw new RuntimeException('Select a status and explain why a replacement is needed.');
-                $q=$pdo->prepare('SELECT * FROM application_requirements WHERE requirement_id=? AND user_id=? FOR UPDATE');
-                $q->execute([(int)($_POST['requirement_id'] ?? 0),$userId]); $requirement=$q->fetch();
-                if (!$requirement || !$requirement['file_path']) throw new RuntimeException('No submitted document to review.');
-                $pdo->prepare('UPDATE application_requirements SET status=?,remarks=?,reviewed_by=? WHERE requirement_id=?')->execute([$status,$remarks,$viewer['user_id'],$requirement['requirement_id']]);
-                application_event($userId,null,'Under Review',$requirement['label'].': '.$status.'. '.$remarks,(int)$viewer['user_id']);
-                notify_user($userId,'Registration Requirements',$requirement['label'].': '.$status.'. '.$remarks,$userId);
-            } elseif (!$isSenior && $action==='start_review') {
-                if ($currentStatus!=='Pending') throw new RuntimeException('Only pending registrations can enter review.');
-                application_event($userId,null,'Under Review',$remarks ?: 'Your registration is being reviewed.',(int)$viewer['user_id']);
-                notify_user($userId,'Registration Update','Your registration is under review. '.$remarks,$userId);
-            } elseif ($viewer['role_name']==='Administrator' && in_array($action,['approve','reject'],true)) {
-                if ($currentStatus!=='Pending') throw new RuntimeException('This registration is no longer pending.');
+            } elseif (!$isSenior && in_array($action,['approve','reject'],true)) {
+                if (!in_array($currentStatus,['Pending','Under Review'],true)) throw new RuntimeException('This registration is no longer waiting for review.');
                 if ($action==='approve') {
-                    $q=$pdo->prepare("SELECT COUNT(*) FROM application_requirements WHERE user_id=? AND status<>'Accepted'"); $q->execute([$userId]);
-                    if ((int)$q->fetchColumn()>0) throw new RuntimeException('Accept all required documents before approving.');
+                    $q=$pdo->prepare("SELECT COUNT(*) FROM application_requirements WHERE user_id=? AND file_path IS NOT NULL AND file_path<>''"); $q->execute([$userId]);
+                    if ((int)$q->fetchColumn()<1) throw new RuntimeException('The senior must submit an identification document before approval.');
                     if (duplicate_seniors($userId) && (empty($_POST['duplicate_checked']) || $remarks==='')) throw new RuntimeException('Review possible duplicates and record why this is a separate person before approving.');
+                    $pdo->prepare("UPDATE application_requirements SET status='Accepted', reviewed_by=? WHERE user_id=? AND file_path IS NOT NULL AND file_path<>''")->execute([(int)$viewer['user_id'],$userId]);
                 } elseif ($remarks==='') throw new RuntimeException('Explain the reason for rejection.');
                 $status=$action==='approve'?'Active':'Rejected';
                 $pdo->prepare('UPDATE users SET status=? WHERE user_id=?')->execute([$status,$userId]);
@@ -82,6 +64,18 @@ function render_application_page(array $roles): void
     $events->execute([$userId,$requestId]);
     $requirements=db()->prepare('SELECT * FROM application_requirements WHERE user_id=? ORDER BY requirement_id');
     $requirements->execute([$userId]);
+    $profile = null;
+    if (!$requestId) {
+        $profileQuery = db()->prepare('SELECT s.*, u.email, u.phone_number FROM senior_citizens s JOIN users u ON u.user_id = s.user_id WHERE s.user_id=?');
+        $profileQuery->execute([$userId]);
+        $profile = $profileQuery->fetch() ?: null;
+    }
+    $release = null;
+    if ($requestId) {
+        $distribution = db()->prepare('SELECT d.*, u.full_name FROM assistance_distributions d JOIN users u ON u.user_id=d.released_by WHERE d.request_id=?');
+        $distribution->execute([$requestId]);
+        $release = $distribution->fetch() ?: null;
+    }
     require __DIR__.'/../includes/header.php'; require __DIR__.'/../includes/sidebar.php';
     $seniorBackHref = BASE_URL . ($requestId ? '/senior/requests.php' : '/senior/dashboard.php');
     $seniorBackLabel = $requestId ? 'Back to my requests' : 'Back to dashboard';
@@ -92,8 +86,11 @@ function render_application_page(array $roles): void
 <h1 class="page-title" data-en="Application tracking" data-ceb="Pagsubay sa aplikasyon">Application tracking</h1>
 <div class="panel mb-3">
 <h2 class="h5"><?= e($record['full_name']) ?> — <?= $requestId ? 'Request #'.$requestId : 'Registration #'.$userId ?></h2>
-<p>Current status: <strong><?= e($record['status']) ?></strong></p>
-<?php if ($requestId): ?><p><?= e($record['request_type']) ?>: <?= e($record['description']) ?></p><?php if (!empty($record['supporting_document'])): ?><p><a class="btn btn-outline-primary" href="<?= BASE_URL ?>/api/request_document.php?request_id=<?= (int)$requestId ?>">View supporting document</a></p><?php endif; ?><?php endif; ?>
+<p>Current status: <strong><?= e($requestId ? request_status_label((string) $record['status']) : $record['status']) ?></strong></p>
+<?php if ($requestId && claim_id_reminder_needed((string) $record['status'], $release)): ?>
+<p class="alert alert-info" role="note" data-en="Note: Please bring a Senior Citizen ID or any valid ID to claim the assistance." data-ceb="Timan-i: Palihog pagdala og Senior Citizen ID o bisan unsang balidong ID aron makuha ang tabang.">Note: Please bring a Senior Citizen ID or any valid ID to claim the assistance.</p>
+<?php endif; ?>
+<?php if ($requestId): ?><p><?= e($record['request_type']) ?><?= ($record['request_type'] ?? '')==='Death Assistance' ? '' : ': '.e($record['description']) ?></p><p class="d-flex flex-wrap gap-2"><?php if (!empty($record['supporting_document'])): document_preview_button((int) $requestId, (string) $record['supporting_document'], request_file_label($record), 'supporting', 'btn btn-outline-primary'); endif; ?><?php if (!empty($record['identity_document'])): document_preview_button((int) $requestId, (string) $record['identity_document'], request_file_label($record, 'identity'), 'identity', 'btn btn-outline-primary'); endif; ?></p><?php endif; ?>
 </div>
 <?php if (!$requestId && !$isSenior):
 $duplicates=duplicate_seniors($userId);
@@ -105,55 +102,129 @@ if ($duplicates): ?>
 <div class="panel mb-3">
 <h2 class="h5" data-en="Application timeline" data-ceb="Kasaysayan sa aplikasyon">Application timeline</h2>
 <ol class="timeline">
-<?php foreach($events as $event): ?><li><strong><?= e($event['status']) ?></strong><div><?= e($event['remarks']) ?></div><time><?= e(date('M j, Y g:i A',strtotime($event['created_at']))) ?></time></li><?php endforeach; ?>
+<?php foreach($events as $event): ?><li><strong><?= e($requestId ? request_status_label((string) $event['status']) : $event['status']) ?></strong><div><?= e($event['remarks']) ?></div><time><?= e(date('M j, Y g:i A',strtotime($event['created_at']))) ?></time></li><?php endforeach; ?>
 </ol>
 <p class="small text-muted">Older applications show their recorded submission date; review steps are recorded from this feature onward.</p>
 </div>
-<?php if (!$requestId): ?>
+<?php if (!$requestId && $isSenior): ?>
 <div class="panel mb-3"><h2 class="h5" data-en="Requirements checklist" data-ceb="Lista sa mga kinahanglan">Requirements checklist</h2>
 <?php foreach($requirements as $requirement): ?>
 <section class="border-bottom py-3">
 <h3 class="h6"><?= e($requirement['label']) ?> — <strong><?= e($requirement['status']) ?></strong></h3>
 <p><?= e($requirement['remarks']) ?></p>
-<?php if ($requirement['file_path']): ?><a class="btn btn-outline-primary mb-2" href="<?= BASE_URL ?>/api/requirement_file.php?id=<?= (int)$requirement['requirement_id'] ?>">View submitted document</a><?php endif; ?>
-<?php if ($isSenior && $requirement['status']!=='Accepted'): ?>
+<?php if ($requirement['file_path']): ?><div class="mb-2"><?php requirement_preview_button((int) $requirement['requirement_id'], (string) $requirement['file_path']); ?></div><?php endif; ?>
+<?php if ($requirement['status']!=='Accepted'): ?>
 <form method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-2">
 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="requirement_id" value="<?= (int)$requirement['requirement_id'] ?>">
 <label>Document (JPG, PNG, PDF; maximum 2 MB)<input class="form-control" type="file" name="document" accept=".jpg,.jpeg,.png,.pdf" required></label>
 <button class="btn btn-primary" name="action" value="upload" data-en="Submit document" data-ceb="Isumite ang dokumento">Submit document</button>
 </form>
-<?php elseif (!$isSenior && $requirement['file_path']): ?>
-<form method="post" class="row g-2">
-<input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="requirement_id" value="<?= (int)$requirement['requirement_id'] ?>">
-<label class="col-md-3">Document status<select class="form-select" name="requirement_status"><option>Accepted</option><option>Needs replacement</option></select></label>
-<label class="col-md-6">Review remarks<input class="form-control" name="remarks" value="<?= e($requirement['remarks']) ?>"></label>
-<div class="col-md-3 d-flex align-items-end"><button class="btn btn-primary" name="action" value="review_requirement">Save review</button></div>
-</form>
 <?php endif; ?>
 </section>
 <?php endforeach; ?>
-<?php if (!$isSenior): ?>
-<form method="post" class="row g-2 mt-2">
-<input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-<label class="col-md-4">Additional requirement<input class="form-control" name="label" maxlength="150" required></label>
-<label class="col-md-5">Instructions<input class="form-control" name="remarks"></label>
-<div class="col-md-3 d-flex align-items-end"><button class="btn btn-primary" name="action" value="add_requirement">Request document</button></div>
-</form>
-<?php endif; ?>
 </div>
-<?php if (!$isSenior && $record['status']==='Pending'): ?>
-<div class="panel"><form method="post">
+<?php elseif (!$requestId): ?>
+<?php
+    $blank = static function (?string $value): string {
+        $value = trim((string) $value);
+        return $value === '' ? '—' : $value;
+    };
+    $purok = trim((string) ($profile['address'] ?? ''));
+    $sitio = trim((string) ($profile['sitio'] ?? ''));
+    if ($sitio !== '') {
+        $purok = trim($purok . ', ' . $sitio, ', ');
+    }
+    $detailRows = [
+        ['Full name', $record['full_name'] ?? ''],
+        ['Date of birth', !empty($profile['birthdate']) ? date('M j, Y', strtotime((string) $profile['birthdate'])) : ''],
+        ['Place of birth', $profile['place_of_birth'] ?? ''],
+        ['Sex', $profile['gender'] ?? ''],
+        ['Civil status', $profile['civil_status'] ?? ''],
+        ['Purok / Sitio', $purok],
+        ['Barangay', $profile['barangay'] ?? ''],
+        ['Municipality', $profile['city_municipality'] ?? ''],
+        ['Province', $profile['province'] ?? ''],
+        ['Contact number', $profile['phone_number'] ?? ''],
+        ['Email', $profile['email'] ?? ''],
+        ['Beneficiary', $profile['beneficiary_name'] ?? ''],
+        ['Beneficiary address', $profile['beneficiary_address'] ?? ''],
+        ['Emergency contact', $profile['emergency_contact_name'] ?? ''],
+        ['Emergency number', $profile['emergency_contact_phone'] ?? ''],
+    ];
+?>
+<div class="panel mb-3">
+<h2 class="h5">Registration details</h2>
+<dl class="row mb-0">
+<?php foreach ($detailRows as [$label, $value]): ?>
+<dt class="col-sm-4 col-lg-3"><?= e($label) ?></dt><dd class="col-sm-8 col-lg-9"><?= e($blank($value)) ?></dd>
+<?php endforeach; ?>
+</dl>
+</div>
+<div class="panel mb-3">
+<h2 class="h5">Submitted documents</h2>
+<p class="text-muted">Review the identification, then approve or reject this registration.</p>
+<div class="d-flex flex-wrap gap-2">
+<?php $hasDocument = false; foreach ($requirements as $requirement): if (!$requirement['file_path']) continue; $hasDocument = true; ?>
+<?php requirement_preview_button((int) $requirement['requirement_id'], (string) $requirement['file_path'], 'View ' . $requirement['label']); ?>
+<?php endforeach; if (!$hasDocument): ?><p class="text-muted mb-0">No identification has been submitted yet.</p><?php endif; ?>
+</div>
+</div>
+<?php if (in_array($record['status'], ['Pending', 'Under Review'], true)): ?>
+<div class="panel"><form method="post" id="registration-decision">
 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-<label class="form-label w-100">Review / decision remarks<textarea class="form-control" name="remarks"></textarea></label>
+<input type="hidden" name="action" id="registration-action" value="">
+<label class="form-label w-100" for="registration-remarks">Remarks<textarea class="form-control" id="registration-remarks" name="remarks" placeholder="Required when rejecting"></textarea></label>
 <?php if (!empty($duplicates)): ?><label class="d-block mb-3"><input type="checkbox" name="duplicate_checked" value="1"> I verified the matching records and confirmed this is a different person.</label><?php endif; ?>
-<button class="btn btn-outline-primary" name="action" value="start_review">Start review</button>
-<?php if ($viewer['role_name']==='Administrator'): ?><button class="btn btn-success" name="action" value="approve">Approve registration</button> <button class="btn btn-outline-danger" name="action" value="reject">Reject with reason</button><?php endif; ?>
+<div class="d-flex flex-wrap gap-2"><button type="button" class="btn btn-success" id="registration-approve">Approve registration</button><button type="button" class="btn btn-outline-danger" id="registration-reject">Reject with reason</button></div>
 </form></div>
+<div class="modal fade" id="approve-registration" tabindex="-1" aria-labelledby="approve-registration-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h2 class="modal-title h5" id="approve-registration-title">Approve registration</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body"><p class="mb-0">Approve <strong><?= e($record['full_name']) ?></strong>? This account will become active.</p></div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-success" id="approve-registration-confirm">Approve registration</button></div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="reject-registration" tabindex="-1" aria-labelledby="reject-registration-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h2 class="modal-title h5" id="reject-registration-title">Reject registration</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body"><p class="mb-0">Are you sure you want to reject <strong><?= e($record['full_name']) ?></strong>?</p></div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-danger" id="reject-registration-confirm">Reject registration</button></div>
+        </div>
+    </div>
+</div>
+<script>
+(() => {
+    const form = document.getElementById('registration-decision');
+    const action = document.getElementById('registration-action');
+    const remarks = document.getElementById('registration-remarks');
+    const submitDecision = (decision) => {
+        action.value = decision;
+        form.requestSubmit();
+    };
+    document.getElementById('registration-approve').addEventListener('click', () => {
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('approve-registration')).show();
+    });
+    document.getElementById('registration-reject').addEventListener('click', () => {
+        if (remarks.value.trim() === '') {
+            remarks.setCustomValidity('Explain the reason for rejection.');
+            remarks.reportValidity();
+            return;
+        }
+        remarks.setCustomValidity('');
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('reject-registration')).show();
+    });
+    remarks.addEventListener('input', () => remarks.setCustomValidity(''));
+    document.getElementById('approve-registration-confirm').addEventListener('click', () => submitDecision('approve'));
+    document.getElementById('reject-registration-confirm').addEventListener('click', () => submitDecision('reject'));
+})();
+</script>
 <?php endif; ?>
-<?php else:
-$d=db()->prepare('SELECT d.*,u.full_name FROM assistance_distributions d JOIN users u ON u.user_id=d.released_by WHERE request_id=?');$d->execute([$requestId]);$release=$d->fetch();
-if ($release): ?>
-<div class="panel"><h2 class="h5">Assistance received</h2><p><?= e($release['item']) ?> — <?= e($release['quantity']) ?> <?= e($release['unit']) ?></p><p>Amount: <?= $release['amount']===null?'Not applicable':'PHP '.e($release['amount']) ?></p><p>Released <?= e($release['released_at']) ?> by <?= e($release['full_name']) ?>. Received by <?= e($release['received_by']) ?>.</p><p><?= e($release['remarks']) ?></p></div>
-<?php endif; endif;
+<?php elseif ($release): ?>
+<div class="panel"><h2 class="h5">Assistance received</h2><p><?= e($release['item']) ?> — <?= e($release['quantity']) ?> <?= e($release['unit']) ?></p><p>Amount: <?= $release['amount']===null?'Not applicable':'PHP '.e($release['amount']) ?></p><p>Released <?= e(format_release_date((string) $release['released_at'])) ?> by <?= e($release['full_name']) ?>. Received by <?= e($release['received_by']) ?>.</p><p><?= e($release['remarks']) ?></p></div>
+<?php endif;
+document_preview_modal();
 require __DIR__.'/../includes/footer.php';
 }

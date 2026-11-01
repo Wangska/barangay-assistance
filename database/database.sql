@@ -73,6 +73,8 @@ CREATE TABLE IF NOT EXISTS senior_citizens (
   valid_id_path VARCHAR(255),
   medical_notes TEXT,
   terms_accepted_at DATETIME NULL,
+  is_deceased TINYINT(1) NOT NULL DEFAULT 0,
+  deceased_at DATETIME NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_seniors_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
@@ -84,6 +86,12 @@ CREATE TABLE IF NOT EXISTS assistance_requests (
   request_type VARCHAR(100) NOT NULL,
   description TEXT NOT NULL,
   supporting_document VARCHAR(255) NULL,
+  pension_status VARCHAR(20) NULL,
+  pension_provider VARCHAR(20) NULL,
+  monthly_pension_amount DECIMAL(12,2) NULL,
+  financial_status VARCHAR(30) NULL,
+  identity_document VARCHAR(255) NULL,
+  identity_label VARCHAR(30) NULL,
   status ENUM('Pending','Under Review','Approved','Rejected','Scheduled','Completed') NOT NULL DEFAULT 'Pending',
   schedule_date DATETIME NULL,
   remarks TEXT,
@@ -179,7 +187,10 @@ CREATE TABLE IF NOT EXISTS settings (
 -- Required reference data. This does not create user accounts.
 INSERT IGNORE INTO roles (role_id, role_name) VALUES
   (1, 'Administrator'), (2, 'Barangay Staff'), (3, 'Senior Citizen');
-INSERT IGNORE INTO settings (setting_key, setting_value) VALUES ('barangay_name', 'Barangay');
+INSERT IGNORE INTO settings (setting_key, setting_value) VALUES
+  ('barangay_name', 'Barangay'),
+  ('death_assistance_amount', '2500'),
+  ('senior_allocation_note', 'The 1% to 2% share of barangay income for senior assistance is unconfirmed and is not used in budget calculations.');
 
 CREATE TABLE IF NOT EXISTS application_events (
  event_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -221,6 +232,15 @@ CREATE TABLE IF NOT EXISTS assistance_distributions (
  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
  FOREIGN KEY (request_id) REFERENCES assistance_requests(request_id),
  FOREIGN KEY (released_by) REFERENCES users(user_id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS assistance_allocations (
+  allocation_id INT AUTO_INCREMENT PRIMARY KEY,
+  label VARCHAR(180) NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  notes TEXT NULL,
+  created_by INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_allocations_user FOREIGN KEY (created_by) REFERENCES users(user_id)
 ) ENGINE=InnoDB;
 INSERT IGNORE INTO application_requirements (user_id,label,status,file_path)
  SELECT user_id,'Valid identification',IF(valid_id_path IS NULL OR valid_id_path='', 'Missing','Submitted'),valid_id_path FROM senior_citizens;

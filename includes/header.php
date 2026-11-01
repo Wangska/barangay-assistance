@@ -29,7 +29,7 @@ $user = current_user();
     >
 
     <link
-        href="<?= BASE_URL ?>/assets/css/style.css?v=20261027d"
+        href="<?= BASE_URL ?>/assets/css/style.css?v=20261101a"
         rel="stylesheet"
     >
 

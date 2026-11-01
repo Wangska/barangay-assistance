@@ -6,14 +6,18 @@ function render_seniors_page(array $roles): void
     $user = require_role($roles);
     $isAdmin = $user['role_name'] === 'Administrator';
     $rows = db()->query("
-        SELECT s.*, u.full_name, u.email, u.phone_number, u.status, u.created_at AS joined_at, req.requirement_id
+        SELECT s.*, u.full_name, u.email, u.phone_number, u.status, u.created_at AS joined_at, req.requirement_id, req.file_path AS requirement_file_path
         FROM senior_citizens s
         JOIN users u ON u.user_id = s.user_id
         LEFT JOIN (
-            SELECT user_id, MIN(requirement_id) AS requirement_id
-            FROM application_requirements
-            WHERE label = 'Valid identification' AND file_path <> ''
-            GROUP BY user_id
+            SELECT ar.user_id, ar.requirement_id, ar.file_path
+            FROM application_requirements ar
+            INNER JOIN (
+                SELECT user_id, MIN(requirement_id) AS requirement_id
+                FROM application_requirements
+                WHERE label = 'Valid identification' AND file_path <> ''
+                GROUP BY user_id
+            ) picked ON picked.requirement_id = ar.requirement_id
         ) req ON req.user_id = s.user_id
         WHERE u.status <> 'Inactive'
         ORDER BY u.full_name
@@ -36,10 +40,17 @@ function render_seniors_page(array $roles): void
             <?php endif; ?>
             <?php foreach ($rows as $r):
                 $idUrl = '';
+                $idKind = 'pdf';
+                $idPath = (string) ($r['requirement_file_path'] ?? '');
                 if (!empty($r['requirement_id'])) {
                     $idUrl = BASE_URL . '/api/requirement_file.php?id=' . (int) $r['requirement_id'];
                 } elseif ($isAdmin && valid_id_storage_path((string) $r['valid_id_path']) !== null) {
                     $idUrl = BASE_URL . '/admin/download_id.php?senior_id=' . (int) $r['senior_id'];
+                    $idPath = (string) $r['valid_id_path'];
+                }
+                if ($idUrl !== '') {
+                    $idExtension = strtolower(pathinfo($idPath, PATHINFO_EXTENSION));
+                    $idKind = in_array($idExtension, ['jpg', 'jpeg', 'png'], true) ? 'image' : 'pdf';
                 }
                 $government = array_filter([
                     'GSIS' => trim((string) $r['gsis_no']),
@@ -87,6 +98,7 @@ function render_seniors_page(array $roles): void
                 $payload = json_encode([
                     'name' => $r['full_name'],
                     'idUrl' => $idUrl,
+                    'idKind' => $idKind,
                     'sections' => array_map(static fn (array $section): array => ['title' => $section[0], 'rows' => $section[1]], $sections),
                 ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
                 ?>
@@ -110,14 +122,16 @@ function render_seniors_page(array $roles): void
                 </div>
                 <div class="modal-body" id="senior-details-body"></div>
                 <div class="modal-footer">
-                    <a class="btn btn-outline-primary me-auto" id="senior-id-link" hidden>View valid ID</a>
+                    <button type="button" class="btn btn-outline-primary me-auto" id="senior-id-link" hidden>View valid ID</button>
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
     </div>
+    <?php document_preview_modal(); ?>
     <script>
     document.getElementById('senior-details').addEventListener('show.bs.modal', (event) => {
+        if (!event.relatedTarget) return;
         const data = JSON.parse(event.relatedTarget.dataset.senior);
         document.getElementById('senior-details-title').textContent = data.name;
         const body = document.getElementById('senior-details-body');
@@ -142,8 +156,30 @@ function render_seniors_page(array $roles): void
         });
         const idLink = document.getElementById('senior-id-link');
         idLink.hidden = !data.idUrl;
-        if (data.idUrl) idLink.href = data.idUrl;
-        else idLink.removeAttribute('href');
+        if (data.idUrl) {
+            idLink.dataset.documentUrl = data.idUrl;
+            idLink.dataset.documentKind = data.idKind || 'pdf';
+        } else {
+            delete idLink.dataset.documentUrl;
+            delete idLink.dataset.documentKind;
+        }
+    });
+    const seniorModal = document.getElementById('senior-details');
+    const idLink = document.getElementById('senior-id-link');
+    let reopenSenior = false;
+    idLink.addEventListener('click', () => {
+        if (!idLink.dataset.documentUrl) return;
+        reopenSenior = true;
+        bootstrap.Modal.getOrCreateInstance(seniorModal).hide();
+    });
+    seniorModal.addEventListener('hidden.bs.modal', () => {
+        if (!reopenSenior) return;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('document-preview-modal')).show(idLink);
+    });
+    document.getElementById('document-preview-modal').addEventListener('hidden.bs.modal', () => {
+        if (!reopenSenior) return;
+        reopenSenior = false;
+        bootstrap.Modal.getOrCreateInstance(seniorModal).show();
     });
     </script>
     <?php

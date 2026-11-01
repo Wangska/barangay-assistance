@@ -15,6 +15,7 @@ $menus = [
         ['Users', '/admin/users.php', 'bi-people'],
         ['Seniors', '/admin/seniors.php', 'bi-person-hearts'],
         ['Requests', '/admin/requests.php', 'bi-clipboard2-pulse'],
+        ['Released Assistance', '/admin/budget.php', 'bi-wallet2'],
         ['Announcements', '/admin/announcements.php', 'bi-broadcast'],
         ['Events', '/admin/events.php', 'bi-calendar-event'],
         ['Reports', '/admin/reports.php', 'bi-file-earmark-bar-graph'],

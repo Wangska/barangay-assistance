@@ -126,6 +126,10 @@ button.sidebar-logout:hover i, button.sidebar-logout:focus-visible i { color: #f
 .senior-interface.larger-text { font-size: 22px; }
 .senior-interface.larger-text .content :is(p,li,td,th,label,.btn,.form-control,.form-select,.small) { font-size: 1.2rem; }
 :focus-visible { outline: 3px solid #d18b00; outline-offset: 3px; }
+.request-inline-link { display: inline; min-height: 0 !important; padding: 0; border: 0; background: transparent; color: #0b6b62; font: inherit; line-height: inherit; text-decoration: underline; cursor: pointer; }
+.request-inline-link:hover { color: #084e48; }
+.document-preview { display: block; width: 100%; max-height: 70vh; object-fit: contain; background: #f4f7f6; }
+.document-preview-frame { display: block; width: 100%; height: min(70vh, 640px); border: 0; background: #f4f7f6; }
 .timeline { padding-left: 1.6rem; }
 .timeline li { padding: 0 0 1rem .5rem; border-left: 3px solid #9ccdc4; }
 .timeline time { color: #4d626b; font-size: .9em; }
