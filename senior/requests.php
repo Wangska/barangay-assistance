@@ -141,8 +141,19 @@ require_once __DIR__ . '/../includes/header.php'; require_once __DIR__ . '/../in
         <?php if (!$rows): ?><tr><td colspan="5" class="text-muted">No requests yet. Use Submit a Request to ask for assistance.</td></tr><?php endif; ?>
         <?php foreach ($rows as $r): ?>
             <tr>
-                <td><?= e($r['request_type']) ?><div><button type="button" class="request-inline-link" data-bs-toggle="modal" data-bs-target="#track-modal" data-track-id="<?= (int) $r['request_id'] ?>">Track application</button></div></td>
-                <td><?= e($r['request_type']==='Death Assistance' ? 'Death certificate and identification' : $r['description']) ?><?php if (!empty($r['supporting_document'])): ?><div><?php document_preview_button((int) $r['request_id'], (string) $r['supporting_document'], request_file_label($r)); ?></div><?php endif; ?><?php if (!empty($r['identity_document'])): ?><div><?php document_preview_button((int) $r['request_id'], (string) $r['identity_document'], request_file_label($r, 'identity'), 'identity'); ?></div><?php endif; ?></td>
+                <td>
+                    <div class="text-nowrap"><?= e($r['request_type']) ?></div>
+                    <button type="button" class="btn btn-sm btn-outline-primary mt-2 text-nowrap" data-bs-toggle="modal" data-bs-target="#track-modal" data-track-id="<?= (int) $r['request_id'] ?>">Track application</button>
+                </td>
+                <td>
+                    <div><?= e($r['request_type']==='Death Assistance' ? 'Death certificate and identification' : $r['description']) ?></div>
+                    <?php if (!empty($r['supporting_document']) || !empty($r['identity_document'])): ?>
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                        <?php if (!empty($r['supporting_document'])): document_preview_button((int) $r['request_id'], (string) $r['supporting_document'], request_file_label($r), 'supporting', 'btn btn-sm btn-outline-primary text-nowrap'); endif; ?>
+                        <?php if (!empty($r['identity_document'])): document_preview_button((int) $r['request_id'], (string) $r['identity_document'], request_file_label($r, 'identity'), 'identity', 'btn btn-sm btn-outline-primary text-nowrap'); endif; ?>
+                    </div>
+                    <?php endif; ?>
+                </td>
                 <td><?= e(request_status_label((string) $r['status'])) ?></td>
                 <td><?= e(date('M j, Y g:i A', strtotime($r['created_at']))) ?></td>
                 <td><?= e($r['remarks']) ?></td>
