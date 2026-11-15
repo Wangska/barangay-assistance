@@ -149,6 +149,14 @@ button.sidebar-logout:hover i, button.sidebar-logout:focus-visible i { color: #f
  tr,.metric-card { break-inside: avoid; }
 }
 
+.queue-slip-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: 1rem; }
+.queue-slip-seal { width: 4.75rem; height: 4.75rem; object-fit: contain; flex: 0 0 auto; }
+.queue-slip-place { flex: 1 1 auto; margin: 0; text-align: center; }
+@media (max-width: 420px) {
+ .queue-slip-head { gap: .4rem; }
+ .queue-slip-seal { width: 3.25rem; height: 3.25rem; }
+}
+
 .mobile-navigation-toggle { display: none; }
 @media (max-width: 900px) {
  .mobile-navigation-toggle { display: block; min-height: 46px; margin: 1rem; }

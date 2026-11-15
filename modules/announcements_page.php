@@ -4,8 +4,14 @@ require_once __DIR__ . '/../sms/sms_gateway.php';
 function render_announcements_page(array $roles): void
 {
     $user = require_role($roles);
+    $canPublish = $user['role_name'] !== 'Administrator';
+    $page = str_contains($_SERVER['REQUEST_URI'], '/staff/') ? '/staff/announcements.php' : '/admin/announcements.php';
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         verify_csrf();
+        if (!$canPublish) {
+            flash('danger', 'Barangay staff publish announcements.');
+            redirect($page);
+        }
         $stmt = db()->prepare('INSERT INTO announcements (title, body, audience, is_emergency, created_by) VALUES (?, ?, ?, ?, ?)');
         $stmt->execute([trim($_POST['title']), trim($_POST['body']), $_POST['audience'], isset($_POST['is_emergency']) ? 1 : 0, $user['user_id']]);
         $id = (int)db()->lastInsertId();
@@ -24,7 +30,7 @@ function render_announcements_page(array $roles): void
         }
         audit_log((int)$user['user_id'], 'Created announcement', 'announcements', $id);
         flash('success', 'Announcement published.');
-        redirect(str_contains($_SERVER['REQUEST_URI'], '/staff/') ? '/staff/announcements.php' : '/admin/announcements.php');
+        redirect($page);
     }
     $rows = db()->query('SELECT a.*, u.full_name FROM announcements a JOIN users u ON u.user_id = a.created_by ORDER BY a.created_at DESC')->fetchAll();
     require_once __DIR__ . '/../includes/header.php';
@@ -32,8 +38,9 @@ function render_announcements_page(array $roles): void
     ?>
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h1 class="page-title mb-0">Senior Announcements</h1>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#announcement-modal">New announcement</button>
+        <?php if ($canPublish): ?><button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#announcement-modal">New announcement</button><?php endif; ?>
     </div>
+    <?php if (!$canPublish): ?><p class="text-muted">Barangay staff publish announcements. This page shows every announcement.</p><?php endif; ?>
     <div class="panel table-responsive">
         <table class="table align-middle">
             <thead><tr><th>Title</th><th>Audience</th><th>Emergency</th><th>By</th><th>Date</th></tr></thead>
@@ -50,6 +57,7 @@ function render_announcements_page(array $roles): void
             </tbody>
         </table>
     </div>
+    <?php if ($canPublish): ?>
     <div class="modal fade" id="announcement-modal" tabindex="-1" aria-labelledby="announcement-modal-title" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <form method="post" class="modal-content">
@@ -65,6 +73,7 @@ function render_announcements_page(array $roles): void
             </form>
         </div>
     </div>
+    <?php endif; ?>
     <?php
     require_once __DIR__ . '/../includes/footer.php';
 }

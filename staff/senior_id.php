@@ -1,0 +1,1 @@
+<?php require_once __DIR__ . '/../modules/senior_id_page.php'; render_senior_id_page(['Barangay Staff']);

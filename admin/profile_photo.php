@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/functions.php';
 
-$user = require_role(['Administrator', 'Barangay Staff', 'Senior Citizen']);
+$user = require_role(['Administrator', 'Barangay Staff', 'Barangay Officer', 'Senior Citizen']);
 $path = profile_photo_storage_path($user['profile_photo'] ?? null);
 if ($path === null) {
     http_response_code(404);

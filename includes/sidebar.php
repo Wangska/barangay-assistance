@@ -38,9 +38,17 @@ $menus = [
 
     ],
 
+    'Barangay Officer' => [
+
+        ['Assistance', '/officer/assistance.php', 'bi-box-seam'],
+        ['Appointments', '/officer/appointments.php', 'bi-calendar-check'],
+
+    ],
+
     'Senior Citizen' => [
 
         ['Dashboard', '/senior/dashboard.php', 'bi-speedometer2'],
+        ['My Senior ID', '/senior/id.php', 'bi-person-vcard'],
         ['My Assistance Requests', '/senior/requests.php', 'bi-clipboard-plus'],
         ['Announcements', '/senior/announcements.php', 'bi-broadcast'],
         ['Events', '/senior/events.php', 'bi-calendar-event']
@@ -90,6 +98,7 @@ $menus = [
             $profilePage = match ($role) {
                 'Administrator' => '/admin/profile.php',
                 'Barangay Staff' => '/staff/profile.php',
+                'Barangay Officer' => '/officer/profile.php',
                 'Senior Citizen' => '/senior/profile.php',
                 default => null,
             };

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/senior_id.php';
 require_once __DIR__ . '/../sms/sms_gateway.php';
 function render_application_page(array $roles): void
 {
@@ -42,6 +43,9 @@ function render_application_page(array $roles): void
                     $pdo->prepare("UPDATE application_requirements SET status='Accepted', reviewed_by=? WHERE user_id=? AND file_path IS NOT NULL AND file_path<>''")->execute([(int)$viewer['user_id'],$userId]);
                 } elseif ($remarks==='') throw new RuntimeException('Explain the reason for rejection.');
                 $status=$action==='approve'?'Active':'Rejected';
+                if ($action === 'approve') {
+                    issue_senior_digital_id($pdo, $userId);
+                }
                 $pdo->prepare('UPDATE users SET status=? WHERE user_id=?')->execute([$status,$userId]);
                 application_event($userId,null,$action==='approve'?'Approved':'Rejected',$remarks ?: 'Registration approved.',(int)$viewer['user_id']);
                 notify_user($userId,'Registration Update','Your registration is now '.$status.'. '.$remarks,$userId);
@@ -223,7 +227,7 @@ if ($duplicates): ?>
 </script>
 <?php endif; ?>
 <?php elseif ($release): ?>
-<div class="panel"><h2 class="h5">Assistance received</h2><p><?= e($release['item']) ?> — <?= e($release['quantity']) ?> <?= e($release['unit']) ?></p><p>Amount: <?= $release['amount']===null?'Not applicable':'PHP '.e($release['amount']) ?></p><p>Released <?= e(format_release_date((string) $release['released_at'])) ?> by <?= e($release['full_name']) ?>. Received by <?= e($release['received_by']) ?>.</p><p><?= e($release['remarks']) ?></p></div>
+<div class="panel"><h2 class="h5">Assistance received</h2><p><?= e($release['item']) ?> — <?= e($release['quantity']) ?> <?= e($release['unit']) ?></p><p>Amount: <?= $release['amount']===null?'Not applicable':'PHP '.e($release['amount']) ?></p><p>Released <?= e(format_release_date((string) $release['released_at'])) ?><?php $claimHours = release_claim_hours($record['schedule_date'] ?? null, $record['schedule_end'] ?? null, (string) $release['released_at']); if ($claimHours !== ''): ?>, <?= e($claimHours) ?><?php endif; ?> by <?= e($release['full_name']) ?>. Received by <?= e($release['received_by']) ?>.</p><p><?= e($release['remarks']) ?></p></div>
 <?php endif;
 document_preview_modal();
 require __DIR__.'/../includes/footer.php';

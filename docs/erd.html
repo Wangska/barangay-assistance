@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERD — Barangay Assistance System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        html, body { margin: 0; height: 100%; background: #fff; }
+        body {
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            font-family: "DM Sans", Arial, sans-serif;
+            color: #1a3746;
+        }
+        .scaler { position: relative; }
+        .board {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 1400px;
+            height: 640px;
+            background: #fff;
+            transform-origin: top left;
+        }
+        .title {
+            position: absolute;
+            left: 28px;
+            right: 28px;
+            top: 12px;
+            margin: 0;
+            color: #103c54;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: -.01em;
+            line-height: 1.3;
+        }
+        .legend {
+            position: absolute;
+            left: 28px;
+            top: 58px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            color: #3e5964;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .legend b { font-weight: 800; }
+        .key { display: inline-flex; align-items: center; gap: 6px; }
+        .swatch { display: inline-grid; place-items: center; min-width: 22px; height: 16px; padding: 0 4px; border-radius: 4px; font-size: 9px; font-weight: 800; }
+        .swatch.pk { color: #fff; background: #0d7b7b; }
+        .swatch.fk { color: #9a5b12; background: #fff6ea; border: 1px solid #f0d7b4; }
+        .sample { width: 28px; height: 0; border-top: 2px solid #0d7b7b; }
+        .sample.dash { border-top-style: dashed; }
+        .sample.none { width: 16px; height: 12px; border: 1.5px dashed #8aa0a8; border-radius: 3px; }
+        svg.links { position: absolute; inset: 0; width: 1400px; height: 640px; }
+        .card {
+            position: absolute;
+            min-height: 108px;
+            overflow: hidden;
+            background: #fff;
+            border: 1px solid #d5e4e2;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(16, 60, 84, .05);
+        }
+        .card.loose { border-style: dashed; border-color: #8aa0a8; box-shadow: none; }
+        .card header {
+            padding: 7px 10px 6px;
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .navy header { background: #103c54; }
+        .teal header { background: #0d7b7b; }
+        .green header { background: #1c6b52; }
+        .slate header { background: #3d5a73; }
+        .card ul { list-style: none; margin: 0; padding: 0; }
+        .card li {
+            display: grid;
+            grid-template-columns: 18px 1fr;
+            gap: 4px;
+            align-items: center;
+            padding: 3px 10px;
+            font-size: 12px;
+            border-top: 1px solid #f1f5f4;
+        }
+        .card li.fk { background: #fffaf3; }
+        .tag { font-size: 9px; font-weight: 800; }
+        .tag.pk { color: #0d7b7b; }
+        .tag.fk { color: #9a5b12; }
+        .tag.dim { color: #c5d4d1; }
+    </style>
+</head>
+<body>
+    <div class="scaler" id="scaler">
+        <div class="board" id="board">
+            <h1 class="title">SCIAMS: A WEB-BASED SENIOR CITIZEN INFORMATION AND ASSISTANCE MANAGEMENT SYSTEM FOR BARANGAY TUNGKIL — Entity Relationship Diagram</h1>
+            <div class="legend">
+                <span class="key"><span class="swatch pk">PK</span> Primary key</span>
+                <span class="key"><span class="swatch fk">FK</span> Foreign key</span>
+                <span class="key"><span class="sample"></span> Relationship</span>
+                <span class="key"><span class="sample dash"></span> Optional</span>
+                <span class="key"><span class="sample none"></span> No foreign key</span>
+                <span class="key"><b>1</b> one</span>
+                <span class="key"><b>*</b> many</span>
+                <span class="key"><b>0..1</b> one or none</span>
+            </div>
+
+            <svg class="links" viewBox="0 0 1400 640" aria-hidden="true">
+                <g fill="none" stroke="#0d7b7b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M188 162 H236"></path>
+                    <path d="M424 162 H492"></path>
+                    <path d="M700 162 H768"></path>
+                    <path d="M990 162 H1058"></path>
+                    <path d="M360 216 V236 H879 V216" stroke-dasharray="5 4"></path>
+                    <path d="M280 216 V258 H1165 V216"></path>
+                    <path d="M340 216 V278"></path>
+                    <path d="M20 278 H1220"></path>
+                    <path d="M104 278 V296"></path>
+                    <path d="M292 278 V296"></path>
+                    <path d="M480 278 V296"></path>
+                    <path d="M668 278 V296"></path>
+                    <path d="M1000 278 V296"></path>
+                    <path d="M1188 278 V296" stroke-dasharray="5 4"></path>
+                    <path d="M20 278 V430"></path>
+                    <path d="M20 430 H760"></path>
+                    <path d="M104 430 V448" stroke-dasharray="5 4"></path>
+                    <path d="M292 430 V448"></path>
+                    <path d="M480 430 V448"></path>
+                    <path d="M760 430 H879"></path>
+                    <path d="M879 216 V448"></path>
+                </g>
+                <g font-family="DM Sans, Arial, sans-serif" font-size="11" font-weight="700" fill="#0d7b7b" text-anchor="middle">
+                    <text x="212" y="158" stroke="#fff" stroke-width="4" paint-order="stroke">1 — *</text>
+                    <text x="458" y="158" stroke="#fff" stroke-width="4" paint-order="stroke">1 — 0..1</text>
+                    <text x="734" y="158" stroke="#fff" stroke-width="4" paint-order="stroke">1 — *</text>
+                    <text x="1024" y="158" stroke="#fff" stroke-width="4" paint-order="stroke">1 — 0..1</text>
+                    <text x="560" y="230" stroke="#fff" stroke-width="4" paint-order="stroke">processed_by · optional</text>
+                    <text x="1040" y="252" stroke="#fff" stroke-width="4" paint-order="stroke">released_by</text>
+                    <text x="104" y="272" stroke="#fff" stroke-width="4" paint-order="stroke">user_id · reviewed_by</text>
+                    <text x="292" y="272" stroke="#fff" stroke-width="4" paint-order="stroke">0..1 · user_id</text>
+                    <text x="480" y="272" stroke="#fff" stroke-width="4" paint-order="stroke">created_by</text>
+                    <text x="668" y="272" stroke="#fff" stroke-width="4" paint-order="stroke">created_by</text>
+                    <text x="1000" y="272" stroke="#fff" stroke-width="4" paint-order="stroke">user_id</text>
+                    <text x="1188" y="272" stroke="#fff" stroke-width="4" paint-order="stroke">user_id · optional</text>
+                    <text x="104" y="422" stroke="#fff" stroke-width="4" paint-order="stroke">user_id · optional</text>
+                    <text x="292" y="422" stroke="#fff" stroke-width="4" paint-order="stroke">generated_by</text>
+                    <text x="480" y="422" stroke="#fff" stroke-width="4" paint-order="stroke">created_by</text>
+                    <text x="640" y="422" stroke="#fff" stroke-width="4" paint-order="stroke">user_id · actor_id</text>
+                    <text x="892" y="360" stroke="#fff" stroke-width="4" paint-order="stroke" text-anchor="start">request_id · optional</text>
+                </g>
+            </svg>
+
+            <article class="card navy" style="left:16px;top:108px;width:172px">
+                <header>roles</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>role_id</li>
+                    <li><span class="tag dim">·</span>role_name</li>
+                </ul>
+            </article>
+            <article class="card navy" style="left:236px;top:108px;width:188px">
+                <header>users</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>user_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>role_id</li>
+                    <li><span class="tag dim">·</span>full_name</li>
+                </ul>
+            </article>
+            <article class="card navy" style="left:492px;top:108px;width:208px">
+                <header>senior_citizens</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>senior_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>user_id</li>
+                    <li><span class="tag dim">·</span>last_name</li>
+                </ul>
+            </article>
+            <article class="card teal" style="left:768px;top:108px;width:222px">
+                <header>assistance_requests</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>request_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>senior_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>processed_by</li>
+                </ul>
+            </article>
+            <article class="card teal" style="left:1058px;top:108px;width:214px">
+                <header>assistance_distributions</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>distribution_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>request_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>released_by</li>
+                </ul>
+            </article>
+
+            <article class="card navy" style="left:16px;top:296px;width:176px">
+                <header>application_requirements</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>requirement_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>user_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>reviewed_by</li>
+                </ul>
+            </article>
+            <article class="card navy" style="left:204px;top:296px;width:176px">
+                <header>password_reset_codes</header>
+                <ul>
+                    <li class="fk"><span class="tag pk">PK</span>user_id</li>
+                    <li><span class="tag dim">·</span>code_hash</li>
+                    <li><span class="tag dim">·</span>expires_at</li>
+                </ul>
+            </article>
+            <article class="card green" style="left:392px;top:296px;width:176px">
+                <header>announcements</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>announcement_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>created_by</li>
+                    <li><span class="tag dim">·</span>title</li>
+                </ul>
+            </article>
+            <article class="card green" style="left:580px;top:296px;width:176px">
+                <header>events</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>event_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>created_by</li>
+                    <li><span class="tag dim">·</span>event_date</li>
+                </ul>
+            </article>
+            <article class="card green" style="left:912px;top:296px;width:176px">
+                <header>notifications</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>notification_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>user_id</li>
+                    <li><span class="tag dim">·</span>title</li>
+                </ul>
+            </article>
+            <article class="card green" style="left:1100px;top:296px;width:176px">
+                <header>sms_logs</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>sms_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>user_id</li>
+                    <li><span class="tag dim">·</span>phone_number</li>
+                </ul>
+            </article>
+
+            <article class="card slate" style="left:16px;top:448px;width:176px">
+                <header>audit_logs</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>audit_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>user_id</li>
+                    <li><span class="tag dim">·</span>action</li>
+                </ul>
+            </article>
+            <article class="card slate" style="left:204px;top:448px;width:176px">
+                <header>reports</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>report_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>generated_by</li>
+                    <li><span class="tag dim">·</span>report_type</li>
+                </ul>
+            </article>
+            <article class="card slate" style="left:392px;top:448px;width:176px">
+                <header>assistance_allocations</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>allocation_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>created_by</li>
+                    <li><span class="tag dim">·</span>amount</li>
+                </ul>
+            </article>
+            <article class="card teal" style="left:768px;top:448px;width:222px">
+                <header>application_events</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>event_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>user_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>request_id</li>
+                    <li class="fk"><span class="tag fk">FK</span>actor_id</li>
+                </ul>
+            </article>
+            <article class="card loose slate" style="left:1020px;top:448px;width:160px">
+                <header>settings</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>setting_key</li>
+                    <li><span class="tag dim">·</span>setting_value</li>
+                </ul>
+            </article>
+            <article class="card loose slate" style="left:1196px;top:448px;width:180px">
+                <header>registration_email_codes</header>
+                <ul>
+                    <li><span class="tag pk">PK</span>email</li>
+                    <li><span class="tag dim">·</span>code_hash</li>
+                </ul>
+            </article>
+        </div>
+    </div>
+    <script>
+        const board = document.getElementById('board');
+        const scaler = document.getElementById('scaler');
+        const fit = () => {
+            const scale = Math.min(
+                (window.innerWidth - 16) / board.offsetWidth,
+                (window.innerHeight - 16) / board.offsetHeight
+            );
+            board.style.transform = 'scale(' + scale + ')';
+            scaler.style.width = (board.offsetWidth * scale) + 'px';
+            scaler.style.height = (board.offsetHeight * scale) + 'px';
+        };
+        addEventListener('resize', fit);
+        fit();
+    </script>
+</body>
+</html>

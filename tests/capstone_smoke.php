@@ -107,13 +107,13 @@ try {
     post_action($staff,'/staff/requests.php',['request_id'=>$requestId,'status'=>'Approved','remarks'=>'Eligible']);
     check(db()->query("SELECT status FROM assistance_requests WHERE request_id=$requestId")->fetchColumn()==='Approved','Request review and approval work');
     $release=['action'=>'release','request_id'=>$requestId,'item'=>'Rice','quantity'=>'2','unit'=>'bags','amount'=>'100','received_by'=>'Applicant','released_at'=>date('Y-m-d'),'remarks'=>'Received'];
-    post_action($staff,'/staff/requests.php',$release);
-    check((int)db()->query('SELECT COUNT(*) FROM assistance_distributions')->fetchColumn()===0,'Staff cannot release assistance');
     http($admin,'/admin/requests.php');
     post_action($admin,'/admin/requests.php',array_replace($release,['quantity'=>'-1']));
     check((int)db()->query('SELECT COUNT(*) FROM assistance_distributions')->fetchColumn()===0,'Invalid release is rejected');
-    post_action($admin,'/admin/requests.php',$release);
-    check(db()->query("SELECT status FROM assistance_requests WHERE request_id=$requestId")->fetchColumn()==='Completed','Release completes request');
+    http($staff,'/staff/requests.php');
+    post_action($staff,'/staff/requests.php',$release);
+    check(db()->query("SELECT status FROM assistance_requests WHERE request_id=$requestId")->fetchColumn()==='Completed','Staff release completes request');
+    check((int)db()->query('SELECT COUNT(*) FROM assistance_distributions')->fetchColumn()===1,'Staff release records one distribution');
     post_action($admin,'/admin/requests.php',$release);
     check((int)db()->query('SELECT COUNT(*) FROM assistance_distributions')->fetchColumn()===1,'Duplicate release is prevented');
     check(str_contains(http($senior,'/senior/application.php?request_id='.$requestId)[1],'Rice'),'Senior sees assistance received');

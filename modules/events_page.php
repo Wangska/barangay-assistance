@@ -3,18 +3,26 @@ require_once __DIR__ . '/../includes/functions.php';
 function render_events_page(array $roles): void
 {
     $user = require_role($roles);
+    $canPublish = $user['role_name'] !== 'Administrator';
+    $page = str_contains($_SERVER['REQUEST_URI'], '/staff/') ? '/staff/events.php' : '/admin/events.php';
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         verify_csrf();
+        if (!$canPublish) {
+            flash('danger', 'Barangay staff add events.');
+            redirect($page);
+        }
         $stmt = db()->prepare('INSERT INTO events (title, description, event_date, venue, created_by) VALUES (?, ?, ?, ?, ?)');
         $stmt->execute([trim($_POST['title']), trim($_POST['description']), $_POST['event_date'], trim($_POST['location'] ?? ''), $user['user_id']]);
         audit_log((int)$user['user_id'], 'Created event', 'events', (int)db()->lastInsertId());
         flash('success', 'Event saved.');
-        redirect(str_contains($_SERVER['REQUEST_URI'], '/staff/') ? '/staff/events.php' : '/admin/events.php');
+        redirect($page);
     }
     $rows = db()->query('SELECT e.*, u.full_name FROM events e JOIN users u ON u.user_id = e.created_by ORDER BY e.event_date DESC')->fetchAll();
     require_once __DIR__ . '/../includes/header.php'; require_once __DIR__ . '/../includes/sidebar.php';
     ?>
     <h1 class="page-title">Events</h1>
+    <?php if (!$canPublish): ?><p class="text-muted">Barangay staff add events. This page shows every event.</p><?php endif; ?>
+    <?php if ($canPublish): ?>
     <div class="panel mb-3">
         <form method="post" class="row g-3">
             <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
@@ -25,6 +33,7 @@ function render_events_page(array $roles): void
             <div class="col-12"><button class="btn btn-primary">Add event</button></div>
         </form>
     </div>
+    <?php endif; ?>
     <div class="panel table-responsive">
         <table class="table align-middle">
             <thead><tr><th>Event</th><th>Date</th><th>Location</th><th>Created By</th></tr></thead>

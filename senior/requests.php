@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/claim_queue.php';
 require_once __DIR__ . '/../sms/sms_gateway.php';
 $user = require_role(['Senior Citizen']);
 $s = db()->prepare('SELECT s.*, u.full_name FROM senior_citizens s JOIN users u ON u.user_id=s.user_id WHERE s.user_id=?');
@@ -9,9 +10,11 @@ $seniorId = (int) ($profile['senior_id'] ?? 0);
 $savedPension = (string) ($profile['is_pensioner'] ?? '');
 $savedSource = strtoupper((string) ($profile['pension_source'] ?? ''));
 $defaultPensionStatus = $savedPension === 'Yes' ? 'With Pension' : ($savedPension === 'No' ? 'Without Pension' : '');
-$defaultProvider = 'None';
+$defaultProvider = '';
 if ($defaultPensionStatus === 'With Pension') {
     $defaultProvider = str_contains($savedSource, 'GSIS') ? 'GSIS' : (str_contains($savedSource, 'SSS') ? 'SSS' : 'Other');
+} elseif ($defaultPensionStatus === 'Without Pension') {
+    $defaultProvider = 'None';
 }
 $defaultPensionAmount = ($profile['monthly_pension'] ?? '') !== '' && $profile['monthly_pension'] !== null
     ? number_format((float) $profile['monthly_pension'], 2, '.', '') : '';
@@ -23,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pensionProvider=trim($_POST['pension_provider'] ?? '');
     $pensionAmount=trim($_POST['monthly_pension_amount'] ?? '');
     $financialStatus=trim($_POST['financial_status'] ?? '');
-    $allowedTypes=['Medical/Financial Assistance','Death Assistance','Special / Indigent Assistance'];
+    $allowedTypes=['Medical/Financial Assistance','Death Assistance','Special / Indigent Assistance','Other Request'];
     if (!in_array($type,$allowedTypes,true)) {
         flash('danger','Choose a request to continue.'); redirect('/senior/requests.php');
     }
@@ -31,6 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('danger', death_assistance_limit_message()); redirect('/senior/requests.php');
     }
     $documentPath=null;
+    $scheduleStart=null;
+    $scheduleEnd=null;
     $identityPath=null;
     $identityLabel=null;
     $seniorIdPath=null;
@@ -58,14 +63,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pensionProvider='';
             $pensionAmount='';
             $financialStatus='';
+        } elseif ($type==='Other Request') {
+            if ($description==='' || strlen($description)>2000) {
+                throw new RuntimeException('Explain the other request.');
+            }
+            $documentPath=upload_request_document($_FILES['document'] ?? []);
+            $pensionStatus='';
+            $pensionProvider='';
+            $pensionAmount='';
+            $financialStatus='';
         } else {
             $validMoney=$pensionAmount==='' || preg_match('/^\d{1,10}(\.\d{1,2})?$/',$pensionAmount)===1;
             $pensionMatches=($pensionStatus==='Without Pension' && $pensionProvider==='None')
                 || ($pensionStatus==='With Pension' && in_array($pensionProvider,['GSIS','SSS','Other'],true));
-            if ($description==='' || strlen($description)>2000
-                || !in_array($financialStatus,['Financially Stable','Low Income','Indigent'],true)
-                || !$pensionMatches || !$validMoney) {
-                throw new RuntimeException('Complete the pension details, financial status, and the reason for the request.');
+            if (!in_array($financialStatus,['Financially Stable','Low Income','Indigent'],true)) {
+                throw new RuntimeException('Choose a financial status.');
+            }
+            if (!$pensionMatches) {
+                throw new RuntimeException('Choose With Pension and GSIS, SSS, or Other, or choose Without Pension and None.');
+            }
+            if (!$validMoney) {
+                throw new RuntimeException('Enter the monthly pension as a number, or leave it blank.');
+            }
+            if ($description==='' || strlen($description)>2000) {
+                throw new RuntimeException('Explain the reason for the request.');
             }
             $documentPath=upload_request_document($_FILES['document'] ?? []);
             if ($documentPath===null) {
@@ -89,11 +110,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new RuntimeException(death_assistance_limit_message());
         }
     }
-    $stmt = db()->prepare('INSERT INTO assistance_requests (senior_id, request_type, description, supporting_document, identity_document, identity_label, pension_status, pension_provider, monthly_pension_amount, financial_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    $stmt->execute([$seniorId, $type, $description, $documentPath, $identityPath, $identityLabel, $pensionStatus!==''?$pensionStatus:null, $pensionProvider!==''?$pensionProvider:null, $pensionAmount===''?null:$pensionAmount, $financialStatus!==''?$financialStatus:null]);
+    $stmt = db()->prepare('INSERT INTO assistance_requests (senior_id, request_type, description, supporting_document, identity_document, identity_label, pension_status, pension_provider, monthly_pension_amount, financial_status, schedule_date, schedule_end) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    $stmt->execute([$seniorId, $type, $description, $documentPath, $identityPath, $identityLabel, $pensionStatus!==''?$pensionStatus:null, $pensionProvider!==''?$pensionProvider:null, $pensionAmount===''?null:$pensionAmount, $financialStatus!==''?$financialStatus:null, $scheduleStart, $scheduleEnd]);
     $requestId = (int)db()->lastInsertId();
-    application_event((int)$user['user_id'],$requestId,'Submitted','Assistance request submitted.',(int)$user['user_id']);
-    notify_user((int)$user['user_id'], 'Assistance Request Submitted', 'Request #' . $requestId . ' for ' . trim($_POST['request_type']) . ' has been submitted and is Pending review.',null,$requestId);
+    $submittedNote = $type==='Other Request' ? 'Other request submitted. Staff will set the appointment.' : 'Assistance request submitted.';
+    application_event((int)$user['user_id'],$requestId,'Submitted',$submittedNote,(int)$user['user_id']);
+    notify_user((int)$user['user_id'], $type==='Other Request' ? 'Other Request Submitted' : 'Assistance Request Submitted', 'Request #' . $requestId . ' for ' . trim($_POST['request_type']) . ' has been submitted and is Pending review.' . ($type==='Other Request' ? ' Staff will set the appointment.' : ''),null,$requestId);
     notify_barangay_staff('New Assistance Application', $user['full_name'] . ' submitted request #' . $requestId . ' for ' . trim($_POST['request_type']) . '.', null, $requestId);
     audit_log((int)$user['user_id'], 'Submitted assistance request', 'assistance_requests', $requestId);
     db()->commit();
@@ -114,6 +136,7 @@ $rows = db()->prepare('SELECT * FROM assistance_requests WHERE senior_id=? ORDER
 $deathAlreadyRequested = death_assistance_already_requested($seniorId);
 $eventsByRequest = [];
 $releasesByRequest = [];
+$queuesByRequest = [];
 if ($rows) {
     $requestIds = array_map(static fn (array $row): int => (int) $row['request_id'], $rows);
     $marks = implode(',', array_fill(0, count($requestIds), '?'));
@@ -124,6 +147,11 @@ if ($rows) {
     }
     $releaseQuery = db()->prepare("SELECT d.*, u.full_name AS released_by_name FROM assistance_distributions d JOIN users u ON u.user_id = d.released_by WHERE d.request_id IN ($marks)");
     $releaseQuery->execute($requestIds);
+    $queueQuery = db()->prepare("SELECT * FROM claim_queues WHERE request_id IN ($marks) ORDER BY queue_date, queue_number");
+    $queueQuery->execute($requestIds);
+    foreach ($queueQuery as $queue) {
+        $queuesByRequest[(int) $queue['request_id']][] = $queue;
+    }
     foreach ($releaseQuery as $release) {
         $releasesByRequest[(int) $release['request_id']] = $release;
     }
@@ -143,10 +171,32 @@ require_once __DIR__ . '/../includes/header.php'; require_once __DIR__ . '/../in
             <tr>
                 <td>
                     <div class="text-nowrap"><?= e($r['request_type']) ?></div>
-                    <button type="button" class="btn btn-sm btn-outline-primary mt-2 text-nowrap" data-bs-toggle="modal" data-bs-target="#track-modal" data-track-id="<?= (int) $r['request_id'] ?>">Track application</button>
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary text-nowrap" data-bs-toggle="modal" data-bs-target="#track-modal" data-track-id="<?= (int) $r['request_id'] ?>">Track application</button>
+                    <?php foreach ($queuesByRequest[(int) $r['request_id']] ?? [] as $queue):
+                        $queueLabel = claim_queue_label($queue);
+                        $queueKind = $queue['queue_type'] === 'Appointment' ? 'Appointment queue' : 'Release queue';
+                        $queueWhen = date('F j, Y', strtotime((string) $queue['queue_date']));
+                        if ($queue['queue_type'] === 'Appointment') {
+                            $visitWindow = appointment_window_label($r['schedule_date'] ?? null, $r['schedule_end'] ?? null, false);
+                        } else {
+                            $visitWindow = release_claim_hours($r['schedule_date'] ?? null, $r['schedule_end'] ?? null, (string) $queue['queue_date']);
+                        }
+                        if ($visitWindow !== '') {
+                            $queueWhen .= ', ' . $visitWindow;
+                        }
+                    ?>
+                        <button type="button" class="btn btn-sm btn-primary text-nowrap" data-bs-toggle="modal" data-bs-target="#queue-modal" data-queue-kind="<?= e($queueKind) ?>" data-queue-number="<?= e($queueLabel) ?>" data-queue-when="<?= e($queueWhen) ?>" data-queue-name="<?= e($profile['full_name'] ?? $user['full_name']) ?>" data-queue-request="<?= e($r['request_type']) ?>" data-queue-control="<?= e((string) ($profile['id_control_number'] ?? '')) ?>" aria-label="Queue <?= e($queueLabel) ?>"><?= e($queueLabel) ?></button>
+                    <?php endforeach; ?>
+                    </div>
                 </td>
                 <td>
                     <div><?= e($r['request_type']==='Death Assistance' ? 'Death certificate and identification' : $r['description']) ?></div>
+                    <?php
+$listedRelease = $releasesByRequest[(int) $r['request_id']] ?? null;
+$claimLine = $listedRelease ? release_claim_hours($r['schedule_date'] ?? null, $r['schedule_end'] ?? null, (string) $listedRelease['released_at']) : '';
+?>
+<?php if ($r['request_type'] === 'Other Request' && !empty($r['schedule_date'])): ?><div class="small text-muted mt-1">Appointment: <?= e(appointment_window_label((string) $r['schedule_date'], $r['schedule_end'] ?? null)) ?></div><?php elseif ($claimLine !== ''): ?><div class="small text-muted mt-1">Claim: <?= e(appointment_window_label((string) $r['schedule_date'], $r['schedule_end'] ?? null)) ?></div><?php endif; ?>
                     <?php if (!empty($r['supporting_document']) || !empty($r['identity_document'])): ?>
                     <div class="d-flex flex-wrap gap-2 mt-2">
                         <?php if (!empty($r['supporting_document'])): document_preview_button((int) $r['request_id'], (string) $r['supporting_document'], request_file_label($r), 'supporting', 'btn btn-sm btn-outline-primary text-nowrap'); endif; ?>
@@ -173,7 +223,10 @@ require_once __DIR__ . '/../includes/header.php'; require_once __DIR__ . '/../in
     <?php endif; ?>
     <p><?= e($r['request_type']) ?><?= $r['request_type'] === 'Death Assistance' ? '' : ': ' . e($r['description']) ?></p>
     <p>Requested <?= e(date('M j, Y g:i A', strtotime($r['created_at']))) ?></p>
-    <?php if (!empty($r['schedule_date'])): ?><p>Schedule: <?= e(date('M j, Y g:i A', strtotime($r['schedule_date']))) ?></p><?php endif; ?>
+    <?php if (!empty($r['schedule_date'])): ?><p><?= $r['request_type'] === 'Other Request' ? 'Appointment' : (($release && release_claim_hours($r['schedule_date'] ?? null, $r['schedule_end'] ?? null, (string) $release['released_at']) !== '') ? 'Claim' : 'Schedule') ?>: <?= e(appointment_window_label((string) $r['schedule_date'], $r['schedule_end'] ?? null)) ?></p><?php endif; ?>
+    <?php foreach ($queuesByRequest[(int) $r['request_id']] ?? [] as $queue): ?>
+        <p><?= e($queue['queue_type']) ?> queue <?= e(claim_queue_label($queue)) ?> on <?= e(date('M j, Y', strtotime($queue['queue_date']))) ?><?= $queue['claimed_at'] ? ' · Claimed' : '' ?></p>
+    <?php endforeach; ?>
     <?php if (trim((string) $r['remarks']) !== ''): ?><p>Remarks: <?= e($r['remarks']) ?></p><?php endif; ?>
     <h3 class="h6">Application timeline</h3>
     <ol class="timeline">
@@ -188,7 +241,7 @@ require_once __DIR__ . '/../includes/header.php'; require_once __DIR__ . '/../in
         <h3 class="h6">Assistance received</h3>
         <p><?= e($release['item']) ?> — <?= e($release['quantity']) ?> <?= e($release['unit']) ?></p>
         <p>Amount: <?= $release['amount'] === null ? 'Not applicable' : 'PHP ' . e(number_format((float) $release['amount'], 2)) ?></p>
-        <p>Released <?= e(format_release_date((string) $release['released_at'])) ?> by <?= e($release['released_by_name']) ?>. Received by <?= e($release['received_by']) ?>.</p>
+        <p>Released <?= e(format_release_date((string) $release['released_at'])) ?><?php $claimHours = release_claim_hours($r['schedule_date'] ?? null, $r['schedule_end'] ?? null, (string) $release['released_at']); if ($claimHours !== ''): ?>, <?= e($claimHours) ?><?php endif; ?> by <?= e($release['released_by_name']) ?>. Received by <?= e($release['received_by']) ?>.</p>
         <?php if (trim((string) $release['remarks']) !== ''): ?><p><?= e($release['remarks']) ?></p><?php endif; ?>
     <?php endif; ?>
 </template>
@@ -207,6 +260,35 @@ require_once __DIR__ . '/../includes/header.php'; require_once __DIR__ . '/../in
         </div>
     </div>
 </div>
+<div class="modal fade" id="queue-modal" tabindex="-1" aria-labelledby="queue-modal-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="queue-modal-title">Queue</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <article class="panel mb-0" id="queue-slip">
+                    <div class="queue-slip-head">
+                        <img class="queue-slip-seal" src="<?= e(BASE_URL) ?>/assets/images/cebu-city-seal.png?v=20261115c" alt="Official Seal of the City of Cebu">
+                        <p class="text-muted queue-slip-place">Barangay Tungkil</p>
+                        <img class="queue-slip-seal" src="<?= e(BASE_URL) ?>/assets/images/minglanilla-seal.png?v=20261115q" alt="Official Seal of Minglanilla, Cebu">
+                    </div>
+                    <h3 class="h5 mb-1 text-center" id="queue-slip-kind"></h3>
+                    <p class="display-4 fw-bold mb-2 text-center" id="queue-slip-number"></p>
+                    <p class="mb-1" id="queue-slip-when"></p>
+                    <p class="mb-1" id="queue-slip-name"></p>
+                    <p class="mb-1" id="queue-slip-request"></p>
+                    <p class="mb-0" id="queue-slip-control"></p>
+                </article>
+            </div>
+            <div class="modal-footer flex-wrap gap-2">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="download-queue-png">Download PNG</button>
+            </div>
+        </div>
+    </div>
+</div>
 <div class="modal fade" id="request-modal" tabindex="-1" aria-labelledby="request-modal-title" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <form method="post" enctype="multipart/form-data" class="modal-content" id="assistance-request-form">
@@ -219,7 +301,7 @@ require_once __DIR__ . '/../includes/header.php'; require_once __DIR__ . '/../in
                 <input type="hidden" name="request_type" id="request-type" value="">
                 <div id="request-choices">
                     <div class="d-grid gap-2">
-                    <p class="text-muted mb-1">This request is for <?= e($profile['full_name'] ?? $user['full_name']) ?>. Choose the assistance, then complete its form. The request date is saved when you submit it.</p>
+                    <p class="text-muted mb-1">This request is for <?= e($profile['full_name'] ?? $user['full_name']) ?>. The first three involve money. Other Request is for a visit or another concern. The request date is saved when you submit it.</p>
                     <button type="button" class="btn btn-outline-primary text-start py-3" data-choose-request="Medical/Financial Assistance"><strong>Medical/Financial Assistance</strong><span class="d-block small">For medicine, a prescription, or financial support.</span></button>
                     <?php if ($deathAlreadyRequested): ?>
                     <button type="button" class="btn btn-outline-secondary text-start py-3" disabled><strong>Death Assistance</strong><span class="d-block small" data-en="<?= e(death_assistance_limit_message()) ?>" data-ceb="Ang tabang sa kamatayon mahimong hangyoon kausa ra. Aduna na kay hangyo niini."><?= e(death_assistance_limit_message()) ?></span></button>
@@ -227,17 +309,23 @@ require_once __DIR__ . '/../includes/header.php'; require_once __DIR__ . '/../in
                     <button type="button" class="btn btn-outline-primary text-start py-3" data-choose-request="Death Assistance"><strong>Death Assistance</strong><span class="d-block small" data-en="For the family or authorized beneficiary. This can be requested only once. The barangay reference amount is PHP <?= e(number_format((float) death_assistance_amount(), 2)) ?>." data-ceb="Para sa pamilya o gitugutan nga makadawat. Kini mahimong hangyoon kausa ra. Ang kantidad sa barangay kay PHP <?= e(number_format((float) death_assistance_amount(), 2)) ?>.">For the family or authorized beneficiary. This can be requested only once. The barangay reference amount is PHP <?= e(number_format((float) death_assistance_amount(), 2)) ?>.</span></button>
                     <?php endif; ?>
                     <button type="button" class="btn btn-outline-primary text-start py-3" data-choose-request="Special / Indigent Assistance"><strong>Special / Indigent Assistance</strong><span class="d-block small">For seniors with no regular income, no pension, or limited resources.</span></button>
+                    <button type="button" class="btn btn-outline-primary text-start py-3" data-choose-request="Other Request"><strong data-en="Other Request" data-ceb="Ubang hangyo">Other Request</strong><span class="d-block small" data-en="For a visit or another concern. Staff will set the appointment. This does not involve money." data-ceb="Para sa pagbisita o laing hangyo. Ang staff ang magtakda sa appointment. Kini walay kwarta.">For a visit or another concern. Staff will set the appointment. This does not involve money.</span></button>
                     </div>
                 </div>
                 <div id="request-details" hidden>
                     <div id="request-standard" class="row g-3">
                         <div class="col-12"><p class="text-muted mb-0">A pension, including GSIS or SSS, does not stop this request.</p></div>
-                        <div class="col-md-6"><label class="form-label" for="financial-status">Financial status</label><select class="form-select" id="financial-status" name="financial_status"><option value="">Choose option</option><option>Financially Stable</option><option>Low Income</option><option>Indigent</option></select></div>
-                        <div class="col-md-6"><label class="form-label" for="pension-status">Pension status</label><select class="form-select" id="pension-status" name="pension_status"><option value="">Choose option</option><option<?= $defaultPensionStatus==='With Pension'?' selected':'' ?>>With Pension</option><option<?= $defaultPensionStatus==='Without Pension'?' selected':'' ?>>Without Pension</option></select></div>
-                        <div class="col-md-6"><label class="form-label" for="pension-provider">Pension provider</label><select class="form-select" id="pension-provider" name="pension_provider"><option value="">Choose option</option><?php foreach (['GSIS','SSS','Other','None'] as $provider): ?><option<?= $defaultProvider===$provider?' selected':'' ?>><?= $provider ?></option><?php endforeach; ?></select></div>
+                        <div class="col-md-6"><label class="form-label" for="financial-status">Financial status</label><select class="form-select" id="financial-status" name="financial_status"><option value="">Choose option</option><option value="Financially Stable">Financially Stable</option><option value="Low Income">Low Income</option><option value="Indigent">Indigent</option></select></div>
+                        <div class="col-md-6"><label class="form-label" for="pension-status">Pension status</label><select class="form-select" id="pension-status" name="pension_status"><option value="">Choose option</option><option value="With Pension"<?= $defaultPensionStatus==='With Pension'?' selected':'' ?>>With Pension</option><option value="Without Pension"<?= $defaultPensionStatus==='Without Pension'?' selected':'' ?>>Without Pension</option></select></div>
+                        <div class="col-md-6"><label class="form-label" for="pension-provider">Pension provider</label><select class="form-select" id="pension-provider" name="pension_provider"><option value="">Choose option</option><?php foreach (['GSIS','SSS','Other','None'] as $provider): ?><option value="<?= e($provider) ?>"<?= $defaultProvider===$provider?' selected':'' ?>><?= $provider ?></option><?php endforeach; ?></select></div>
                         <div class="col-md-6"><label class="form-label" for="pension-amount">Monthly pension amount</label><div class="input-group"><span class="input-group-text">₱</span><input class="form-control" id="pension-amount" type="number" min="0" step="0.01" name="monthly_pension_amount" placeholder="Optional" value="<?= e($defaultPensionAmount) ?>"></div></div>
                         <div class="col-12"><label class="form-label" for="request-description">Reason for requesting assistance</label><textarea class="form-control" id="request-description" name="description" rows="3" maxlength="2000" placeholder="Explain why this assistance is needed"></textarea></div>
                         <div class="col-12"><label class="form-label" id="request-document-label" for="request-document">Supporting document</label><input class="form-control" id="request-document" type="file" name="document" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"><div class="form-text">JPG, PNG, or PDF, up to 2 MB.</div></div>
+                    </div>
+                    <div id="request-other" class="row g-3" hidden>
+                        <div class="col-12"><p class="text-muted mb-0">This request does not involve money. Explain what you need. Staff will set the appointment date and timeframe. A supporting document is optional.</p></div>
+                        <div class="col-12"><label class="form-label" for="other-description">What is this request for?</label><textarea class="form-control" id="other-description" name="description" rows="3" maxlength="2000" placeholder="Explain the visit or concern"></textarea></div>
+                        <div class="col-12"><label class="form-label" for="other-document">Supporting document</label><input class="form-control" id="other-document" type="file" name="document" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"><div class="form-text">Optional. JPG, PNG, or PDF, up to 2 MB.</div></div>
                     </div>
                     <div id="request-death" class="row g-3" hidden>
                         <div class="col-12"><p class="text-muted mb-0">Upload the death certificate and a Senior ID. If a Senior ID is not available, upload any valid ID instead.</p></div>
@@ -261,6 +349,7 @@ require_once __DIR__ . '/../includes/header.php'; require_once __DIR__ . '/../in
     const choices = document.getElementById('request-choices');
     const details = document.getElementById('request-details');
     const standard = document.getElementById('request-standard');
+    const other = document.getElementById('request-other');
     const death = document.getElementById('request-death');
     const typeInput = document.getElementById('request-type');
     const title = document.getElementById('request-modal-title');
@@ -293,19 +382,24 @@ require_once __DIR__ . '/../includes/header.php'; require_once __DIR__ . '/../in
         title.textContent = 'Choose a request';
         typeInput.value = '';
         setPanel(standard, false);
+        setPanel(other, false);
         setPanel(death, false);
     };
     const showForm = (type) => {
         const isDeath = type === 'Death Assistance';
+        const isOther = type === 'Other Request';
         choices.hidden = true;
         details.hidden = false;
         back.hidden = false;
         submit.hidden = false;
         title.textContent = type;
         typeInput.value = type;
-        setPanel(standard, !isDeath);
+        setPanel(standard, !isDeath && !isOther);
+        setPanel(other, isOther);
         setPanel(death, isDeath);
-        if (!isDeath) {
+        if (isOther) {
+            document.getElementById('other-description').required = true;
+        } else if (!isDeath) {
             ['financial-status', 'pension-status', 'pension-provider', 'request-description', 'request-document'].forEach((id) => {
                 document.getElementById(id).required = true;
             });
@@ -317,7 +411,21 @@ require_once __DIR__ . '/../includes/header.php'; require_once __DIR__ . '/../in
             document.getElementById('death-certificate').required = true;
             syncDeathId();
         }
+        if (!isDeath && !isOther) syncPension();
     };
+    const pensionStatus = document.getElementById('pension-status');
+    const pensionProvider = document.getElementById('pension-provider');
+    const syncPension = () => {
+        const without = pensionStatus.value === 'Without Pension';
+        const withPension = pensionStatus.value === 'With Pension';
+        [...pensionProvider.options].forEach((option) => {
+            if (option.value === '') return;
+            option.disabled = without ? option.value !== 'None' : (withPension && option.value === 'None');
+        });
+        if (without) pensionProvider.value = 'None';
+        else if (withPension && (pensionProvider.value === 'None' || pensionProvider.value === '')) pensionProvider.value = '';
+    };
+    pensionStatus.addEventListener('change', syncPension);
     document.querySelectorAll('[data-choose-request]').forEach((button) => {
         button.addEventListener('click', () => showForm(button.dataset.chooseRequest));
     });
@@ -358,6 +466,79 @@ require_once __DIR__ . '/../includes/header.php'; require_once __DIR__ . '/../in
         });
     });
     trackModal.addEventListener('hidden.bs.modal', () => trackBody.replaceChildren());
+})();
+(() => {
+    const queueModal = document.getElementById('queue-modal');
+    const download = document.getElementById('download-queue-png');
+    if (!queueModal || !download) return;
+    let slip = null;
+    const text = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+    };
+    queueModal.addEventListener('show.bs.modal', (event) => {
+        const button = event.relatedTarget;
+        if (!button) return;
+        slip = {
+            kind: button.dataset.queueKind || '',
+            number: button.dataset.queueNumber || '',
+            when: button.dataset.queueWhen || '',
+            name: button.dataset.queueName || '',
+            request: button.dataset.queueRequest || '',
+            control: button.dataset.queueControl || ''
+        };
+        document.getElementById('queue-modal-title').textContent = 'Queue ' + slip.number;
+        text('queue-slip-kind', slip.kind);
+        text('queue-slip-number', slip.number);
+        text('queue-slip-when', slip.when);
+        text('queue-slip-name', slip.name);
+        text('queue-slip-request', slip.request);
+        text('queue-slip-control', 'ID control no. ' + slip.control);
+    });
+    const loadSeal = (src) => new Promise((resolve) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => resolve(null);
+        image.src = src;
+    });
+    download.addEventListener('click', () => {
+        if (!slip) return;
+        Promise.all([
+            loadSeal(<?= json_encode(BASE_URL . '/assets/images/cebu-city-seal.png') ?>),
+            loadSeal(<?= json_encode(BASE_URL . '/assets/images/minglanilla-seal.png') ?>)
+        ]).then(([cebu, minglanilla]) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 900;
+            canvas.height = 640;
+            const pen = canvas.getContext('2d');
+            pen.fillStyle = '#fffdf8';
+            pen.fillRect(0, 0, canvas.width, canvas.height);
+            pen.strokeStyle = '#b89a62';
+            pen.lineWidth = 8;
+            pen.strokeRect(24, 24, canvas.width - 48, canvas.height - 48);
+            const sealSize = 128;
+            if (cebu) pen.drawImage(cebu, 52, 52, sealSize, sealSize);
+            if (minglanilla) pen.drawImage(minglanilla, canvas.width - 52 - sealSize, 52, sealSize, sealSize);
+            pen.fillStyle = '#1d2430';
+            pen.textAlign = 'center';
+            pen.font = '28px Georgia, serif';
+            pen.fillText('Barangay Tungkil', 450, 124);
+            pen.font = '32px Georgia, serif';
+            pen.fillText(slip.kind, 450, 250);
+            pen.font = 'bold 120px Georgia, serif';
+            pen.fillText(slip.number, 450, 390);
+            pen.font = '28px Georgia, serif';
+            pen.fillText(slip.when, 450, 455);
+            pen.fillText(slip.name, 450, 500);
+            pen.font = '24px Georgia, serif';
+            pen.fillText(slip.request, 450, 545);
+            pen.fillText('ID control no. ' + slip.control, 450, 585);
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/png');
+            link.download = 'queue-' + slip.number + '.png';
+            link.click();
+        });
+    });
 })();
 </script>
 <?php document_preview_modal(); require_once __DIR__ . '/../includes/footer.php'; ?>

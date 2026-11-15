@@ -63,13 +63,17 @@ function notification_destination(array $n, string $role): ?string
 
 function translated_label(string $text): string
 {
-    $map=['Dashboard'=>'Pangunang panid','Application'=>'Aplikasyon','Profile'=>'Personal nga impormasyon','Notifications'=>'Mga pahibalo','Requests'=>'Mga hangyo','Released Assistance'=>'Gipagawas nga tabang','My Assistance Requests'=>'Akong mga hangyo sa tabang','Back to my requests'=>'Balik sa akong mga hangyo','Back to dashboard'=>'Balik sa dashboard','Announcements'=>'Mga anunsyo','Events'=>'Mga kalihokan','Logout'=>'Paggawas'];
+    $map=['Dashboard'=>'Pangunang panid','Application'=>'Aplikasyon','Profile'=>'Personal nga impormasyon','Notifications'=>'Mga pahibalo','Requests'=>'Mga hangyo','Released Assistance'=>'Gipagawas nga tabang','My Assistance Requests'=>'Akong mga hangyo sa tabang','My Senior ID'=>'Akong Senior ID','Claim queue'=>'Pila sa pagkuha','Assistance'=>'Tabang','Appointments'=>'Mga appointment','Back to my requests'=>'Balik sa akong mga hangyo','Back to dashboard'=>'Balik sa dashboard','Announcements'=>'Mga anunsyo','Events'=>'Mga kalihokan','Logout'=>'Paggawas'];
     return '<span data-en="'.e($text).'" data-ceb="'.e($map[$text] ?? $text).'">'.e($text).'</span>';
 }
 
 function request_status_label(string $status): string
 {
-    return $status === 'Completed' ? 'Released' : $status;
+    return match ($status) {
+        'Completed' => 'Released',
+        'Rejected' => 'Declined',
+        default => $status,
+    };
 }
 
 function format_release_date(string $value): string
@@ -128,38 +132,111 @@ function claim_id_reminder_needed(string $status, ?array $release = null): bool
     return $releasedAt !== false && $releasedAt >= time();
 }
 
+function is_other_request(string $type): bool
+{
+    return $type === 'Other Request';
+}
+
 function release_assistance(int $requestId, array $data, int $actorId): void
 {
+    require_once __DIR__ . '/claim_queue.php';
     $quantity=(string)($data['quantity'] ?? '');
     $amount=trim((string)($data['amount'] ?? ''));
-    $rawDate=(string)($data['released_at'] ?? '');
-    $date=DateTime::createFromFormat('!Y-m-d', $rawDate) ?: DateTime::createFromFormat('!Y-m-d\TH:i', $rawDate);
-    $dateMatches=$date && ($date->format('Y-m-d')===$rawDate || $date->format('Y-m-d\TH:i')===$rawDate);
     $item=trim((string)($data['item'] ?? ''));
     $unit=trim((string)($data['unit'] ?? ''));
     $receiver=trim((string)($data['received_by'] ?? ''));
-    $releaseDay=$date ? DateTime::createFromFormat('!Y-m-d', $date->format('Y-m-d')) : null;
+    $releasedAt = release_date_value($data);
+    $releaseDay = substr($releasedAt, 0, 10);
+    [$claimStart, $claimEnd] = release_claim_window($releaseDay, $data);
+    $claimHours = release_claim_hours($claimStart, $claimEnd, $releasedAt);
     if (!preg_match('/^\d{1,10}(\.\d{1,2})?$/',$quantity) || (float)$quantity<=0
         || !preg_match('/^\d{1,10}(\.\d{1,2})?$/',$amount)
-        || !$dateMatches || $releaseDay < new DateTime('today')
         || $item==='' || strlen($item)>180 || $unit==='' || strlen($unit)>40 || $receiver==='' || strlen($receiver)>150) {
-        throw new RuntimeException('Enter the amount, item, quantity, unit, recipient, and a release date and time of today or later.');
+        throw new RuntimeException('Enter the amount, item, quantity, unit, recipient, and a release date of today or later.');
     }
     $pdo=db(); $pdo->beginTransaction();
     try {
-        $q=$pdo->prepare('SELECT ar.status,s.user_id FROM assistance_requests ar JOIN senior_citizens s ON s.senior_id=ar.senior_id WHERE request_id=? FOR UPDATE');
+        $q=$pdo->prepare('SELECT ar.status, ar.request_type, s.user_id FROM assistance_requests ar JOIN senior_citizens s ON s.senior_id=ar.senior_id WHERE request_id=? FOR UPDATE');
         $q->execute([$requestId]); $r=$q->fetch();
-        if (!$r || !in_array($r['status'],['Approved','Scheduled'],true)) throw new RuntimeException('Only approved or scheduled requests can be released.');
+        if (!$r || is_other_request((string) $r['request_type'])) throw new RuntimeException('Other requests are recorded by the officer. They do not use an amount.');
+        if (!in_array($r['status'],['Approved','Scheduled'],true)) throw new RuntimeException('Only approved requests can be released.');
         $pdo->prepare('INSERT INTO assistance_distributions (request_id,item,quantity,unit,amount,released_at,released_by,received_by,remarks) VALUES (?,?,?,?,?,?,?,?,?)')
-            ->execute([$requestId,$item,$quantity,$unit,$amount===''?null:$amount,$date->format('Y-m-d H:i:s'),$actorId,$receiver,trim($data['remarks'] ?? '')]);
-        $pdo->prepare("UPDATE assistance_requests SET status='Completed',processed_by=? WHERE request_id=?")->execute([$actorId,$requestId]);
-        $releasedWhen=str_contains($rawDate, 'T') ? $date->format('M j, Y g:i A') : $date->format('M j, Y');
-        application_event((int)$r['user_id'],$requestId,'Completed','Released on '.$releasedWhen.': '.$item.' ('.$quantity.' '.$unit.'). Amount: PHP '.number_format((float)$amount,2).'. Received by '.$receiver.'.',$actorId);
-        notify_user((int)$r['user_id'],'Assistance Released','Your assistance for request #'.$requestId.' has been released.',null,$requestId);
+            ->execute([$requestId,$item,$quantity,$unit,$amount===''?null:$amount,$releasedAt,$actorId,$receiver,trim($data['remarks'] ?? '')]);
+        $pdo->prepare("UPDATE assistance_requests SET status='Completed', schedule_date=?, schedule_end=?, processed_by=? WHERE request_id=?")->execute([$claimStart,$claimEnd,$actorId,$requestId]);
+        $releaseQueue = claim_queue_for_request($pdo, $requestId, 'Release', $releaseDay);
+        $when = date('M j, Y', strtotime($releasedAt)) . ($claimHours !== '' ? ', ' . $claimHours : '');
+        $queueNote = ' Assistance queue number ' . claim_queue_label($releaseQueue) . '.';
+        application_event((int)$r['user_id'],$requestId,'Completed','Released on '.$when.': '.$item.' ('.$quantity.' '.$unit.'). Amount: PHP '.number_format((float)$amount,2).'. Received by '.$receiver.'.'.$queueNote,$actorId);
+        notify_user((int)$r['user_id'],'Assistance Released','Your assistance for request #'.$requestId.' has been released. Claim '.$when.'.'.$queueNote,null,$requestId);
         audit_log($actorId,'Released assistance','assistance_requests',$requestId);
         $pdo->commit();
     } catch (Throwable $e) { if ($pdo->inTransaction()) $pdo->rollBack(); throw $e; }
 }
+function release_date_value(array $data): string
+{
+    $raw = (string) ($data['released_at'] ?? '');
+    $date = DateTime::createFromFormat('!Y-m-d', $raw) ?: DateTime::createFromFormat('!Y-m-d\TH:i', $raw);
+    $matches = $date && ($date->format('Y-m-d') === $raw || $date->format('Y-m-d\TH:i') === $raw);
+    $day = $matches ? DateTime::createFromFormat('!Y-m-d', $date->format('Y-m-d')) : null;
+    if (!$matches || !$day || $day < new DateTime('today')) {
+        throw new RuntimeException('Enter the amount, item, quantity, unit, recipient, and a release date of today or later.');
+    }
+    return str_contains($raw, 'T') ? $date->format('Y-m-d H:i:s') : $date->format('Y-m-d') . ' 00:00:00';
+}
+
+function release_claim_window(string $day, array $data): array
+{
+    require_once __DIR__ . '/claim_queue.php';
+    $hours = appointment_hour_options();
+    $start = (string) ($data['claim_start'] ?? '');
+    $end = (string) ($data['claim_end'] ?? '');
+    if ($start === '' && $end === '') {
+        $start = '08:00';
+        $end = '17:00';
+    }
+    if (!isset($hours[$start], $hours[$end]) || $start === '17:00' || $start >= $end) {
+        throw new RuntimeException('Choose a claim time from 8:00 AM to 5:00 PM, and make the end later than the start.');
+    }
+    return [$day . ' ' . $start . ':00', $day . ' ' . $end . ':00'];
+}
+
+function release_claim_hours(?string $scheduleDate, ?string $scheduleEnd, ?string $releasedAt): string
+{
+    require_once __DIR__ . '/claim_queue.php';
+    if ($scheduleDate === null || trim($scheduleDate) === '' || $releasedAt === null || trim($releasedAt) === '') {
+        return '';
+    }
+    if (date('Y-m-d', strtotime($scheduleDate)) !== date('Y-m-d', strtotime($releasedAt))) {
+        return '';
+    }
+    return appointment_window_label($scheduleDate, $scheduleEnd, false);
+}
+
+function release_appointment_window(array $data): array
+{
+    require_once __DIR__ . '/claim_queue.php';
+    $hours = appointment_hour_options();
+    $rawDate = (string) ($data['appointment_date'] ?? '');
+    $rawStart = (string) ($data['appointment_start'] ?? '');
+    $rawEnd = (string) ($data['appointment_end'] ?? '');
+    if ($rawDate === '') {
+        $legacy = (string) ($data['released_at'] ?? '');
+        $legacyDate = DateTime::createFromFormat('!Y-m-d', $legacy) ?: DateTime::createFromFormat('!Y-m-d\TH:i', $legacy);
+        $legacyMatches = $legacyDate && ($legacyDate->format('Y-m-d') === $legacy || $legacyDate->format('Y-m-d\TH:i') === $legacy);
+        if ($legacyMatches) {
+            $rawDate = $legacyDate->format('Y-m-d');
+            $clock = str_contains($legacy, 'T') ? $legacyDate->format('H:i') : '08:00';
+            $rawStart = isset($hours[$clock]) && $clock < '17:00' ? $clock : '08:00';
+            $rawEnd = '17:00';
+        }
+    }
+    $day = DateTime::createFromFormat('!Y-m-d', $rawDate);
+    if (!$day || $day->format('Y-m-d') !== $rawDate || $day < new DateTime('today') || !isset($hours[$rawStart], $hours[$rawEnd]) || $rawStart >= $rawEnd) {
+        throw new RuntimeException('Enter the amount, item, quantity, unit, recipient, and an appointment from 8:00 AM to 5:00 PM on today or a later date.');
+    }
+    return [$rawDate, $rawStart, $rawEnd];
+}
+
 function report_csv_cell(mixed $value): string
 {
     $value=(string)$value;

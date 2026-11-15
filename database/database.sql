@@ -75,9 +75,12 @@ CREATE TABLE IF NOT EXISTS senior_citizens (
   terms_accepted_at DATETIME NULL,
   is_deceased TINYINT(1) NOT NULL DEFAULT 0,
   deceased_at DATETIME NULL,
+  id_control_number VARCHAR(20) NULL,
+  id_issued_at DATE NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT fk_seniors_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+  CONSTRAINT fk_seniors_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  UNIQUE KEY uq_senior_control_number (id_control_number)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS assistance_requests (
@@ -94,6 +97,7 @@ CREATE TABLE IF NOT EXISTS assistance_requests (
   identity_label VARCHAR(30) NULL,
   status ENUM('Pending','Under Review','Approved','Rejected','Scheduled','Completed') NOT NULL DEFAULT 'Pending',
   schedule_date DATETIME NULL,
+  schedule_end DATETIME NULL,
   remarks TEXT,
   processed_by INT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -102,6 +106,23 @@ CREATE TABLE IF NOT EXISTS assistance_requests (
   INDEX idx_requests_senior_status_created (senior_id, status, created_at),
   CONSTRAINT fk_requests_senior FOREIGN KEY (senior_id) REFERENCES senior_citizens(senior_id) ON DELETE CASCADE,
   CONSTRAINT fk_requests_processor FOREIGN KEY (processed_by) REFERENCES users(user_id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS claim_queues (
+  queue_id INT AUTO_INCREMENT PRIMARY KEY,
+  request_id INT NOT NULL,
+  queue_type ENUM('Release','Appointment') NOT NULL,
+  queue_date DATE NOT NULL,
+  queue_number INT NOT NULL,
+  queue_code VARCHAR(32) NOT NULL,
+  claimed_at DATETIME NULL,
+  claimed_by INT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_claim_queue_code (queue_code),
+  UNIQUE KEY uq_claim_queue_type_number (queue_type, queue_number),
+  UNIQUE KEY uq_claim_queue_request_day (request_id, queue_type, queue_date),
+  CONSTRAINT fk_claim_queue_request FOREIGN KEY (request_id) REFERENCES assistance_requests(request_id) ON DELETE CASCADE,
+  CONSTRAINT fk_claim_queue_officer FOREIGN KEY (claimed_by) REFERENCES users(user_id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS announcements (
@@ -186,9 +207,11 @@ CREATE TABLE IF NOT EXISTS settings (
 
 -- Required reference data. This does not create user accounts.
 INSERT IGNORE INTO roles (role_id, role_name) VALUES
-  (1, 'Administrator'), (2, 'Barangay Staff'), (3, 'Senior Citizen');
+  (1, 'Administrator'), (2, 'Barangay Staff'), (3, 'Senior Citizen'), (4, 'Barangay Officer');
 INSERT IGNORE INTO settings (setting_key, setting_value) VALUES
   ('barangay_name', 'Barangay'),
+  ('osca_head_name', ''),
+  ('punong_barangay_name', ''),
   ('death_assistance_amount', '2500'),
   ('senior_allocation_note', 'The 1% to 2% share of barangay income for senior assistance is unconfirmed and is not used in budget calculations.');
 

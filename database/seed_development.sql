@@ -2,7 +2,7 @@
 USE barangay_assistance_system;
 
 INSERT IGNORE INTO roles (role_id, role_name) VALUES
-  (1, 'Administrator'), (2, 'Barangay Staff'), (3, 'Senior Citizen');
+  (1, 'Administrator'), (2, 'Barangay Staff'), (3, 'Senior Citizen'), (4, 'Barangay Officer');
 
 INSERT IGNORE INTO users (role_id, full_name, email, phone_number, password_hash, status)
 SELECT role_id, 'System Administrator', 'admin@barangay.test', '09170000001', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Active'
@@ -13,6 +13,9 @@ FROM roles WHERE role_name = 'Barangay Staff';
 INSERT IGNORE INTO users (role_id, full_name, email, phone_number, password_hash, status)
 SELECT role_id, 'Maria Santos', 'senior@barangay.test', '09170000003', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Active'
 FROM roles WHERE role_name = 'Senior Citizen';
+INSERT IGNORE INTO users (role_id, full_name, email, phone_number, password_hash, status)
+SELECT role_id, 'Barangay Officer', 'officer@barangay.test', '09170000004', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Active'
+FROM roles WHERE role_name = 'Barangay Officer';
 
 INSERT INTO senior_citizens (user_id, first_name, last_name, birthdate, gender, region, province, city_municipality, address, place_of_birth, civil_status, blood_type, religion, education, employment_status, classification, emergency_contact_name, emergency_contact_phone, medical_notes, terms_accepted_at)
 SELECT u.user_id, 'Maria', 'Santos', '1954-04-12', 'Female', 'Region IV-A', 'Laguna', 'Sample Municipality', 'Purok 1, Barangay Sample', 'Sample Municipality', 'Widowed', 'O+', 'Roman Catholic', 'Elementary', 'Retired', 'Pensioner', 'Ana Santos', '09170000005', 'Hypertension maintenance medicine.', NOW()

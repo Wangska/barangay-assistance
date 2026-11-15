@@ -1,7 +1,11 @@
 <?php
 require_once __DIR__ . '/../includes/functions.php';
-$user = require_role(['Administrator', 'Barangay Staff']);
-$profilePage = $user['role_name'] === 'Barangay Staff' ? '/staff/profile.php' : '/admin/profile.php';
+$user = require_role(['Administrator', 'Barangay Staff', 'Barangay Officer']);
+$profilePage = match ($user['role_name']) {
+    'Barangay Staff' => '/staff/profile.php',
+    'Barangay Officer' => '/officer/profile.php',
+    default => '/admin/profile.php',
+};
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();

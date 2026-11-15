@@ -107,7 +107,12 @@ function render_seniors_page(array $roles): void
                     <td><?= e($r['phone_number']) ?></td>
                     <td><?= e($r['birthdate']) ?></td>
                     <td><span class="badge text-bg-secondary"><?= e($r['status']) ?></span></td>
-                    <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#senior-details" data-senior="<?= e($payload) ?>">View</button></td>
+                    <td class="text-end text-nowrap">
+                        <?php if (trim((string) ($r['id_control_number'] ?? '')) !== '' && $r['status'] === 'Active'): ?>
+                            <a class="btn btn-sm btn-outline-primary" href="<?= e(BASE_URL . ($isAdmin ? '/admin' : '/staff') . '/senior_id.php?senior_id=' . (int) $r['senior_id']) ?>">Digital ID</a>
+                        <?php endif; ?>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#senior-details" data-senior="<?= e($payload) ?>">View</button>
+                    </td>
                 </tr>
             <?php endforeach; ?>
             </tbody>

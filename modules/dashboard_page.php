@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__.'/../includes/functions.php';
+require_once __DIR__.'/../includes/claim_queue.php';
 
 function dashboard_status_class(string $status): string {
     return match($status) {
@@ -63,7 +64,7 @@ function render_role_dashboard(string $role): void {
         ['Registrations',$pendingRegistrations,'Applications to review','bi-person-check','green',$prefix.'/registrations.php']
     ]);
 ?>
-<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/dashboard.css">
+<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/dashboard.css?v=20261115a">
 <div class="dashboard <?= $isSenior?'dashboard-senior':'' ?>">
 <header class="dash-heading">
     <div><p class="dash-eyebrow"><?= $isSenior?'YOUR SENIORCARE SPACE':($isAdmin?'COMMUNITY OVERVIEW':'BARANGAY WORKSPACE') ?></p><h1><?= $isSenior?'My dashboard':($isAdmin?'Administrator dashboard':'Staff dashboard') ?></h1></div>
@@ -75,6 +76,7 @@ function render_role_dashboard(string $role): void {
         <h2><?= e($greeting) ?>, <?= e($firstName) ?>.</h2>
         <p><?= $isSenior?'Your assistance, updates, and next steps—all in one place.':($isAdmin?'A closer look at your community. Keep services moving and make every application count.':'Make today a little easier for your community. Your review queue and upcoming schedules are ready.') ?></p>
         <div class="welcome-actions">
+            <?php if ($isSenior && $user['status'] === 'Active'): ?><a class="dash-button light" href="<?= BASE_URL ?>/senior/id.php">My Senior ID <i class="bi bi-person-vcard" aria-hidden="true"></i></a><?php endif; ?>
             <a class="dash-button light" href="<?= BASE_URL.$prefix ?>/requests.php"><?= $isSenior?'Request assistance':'Open request queue' ?> <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
             <a class="welcome-secondary" href="<?= BASE_URL.$prefix.($isSenior?'/announcements.php':'/reports.php') ?>"><?= $isSenior?'View announcements':'View reports' ?> <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
         </div>
@@ -153,7 +155,7 @@ $stops=[];$cursor=0;$i=0;foreach($statuses as $status=>$count){$next=$cursor+($t
 <div class="dash-card-heading"><div><p class="dash-eyebrow">PLAN AHEAD</p><h2><?= $isSenior?'Your next schedule':'Upcoming schedules' ?></h2></div><i class="bi bi-calendar2-week" aria-hidden="true"></i></div>
 <?php if(!$schedule): ?><div class="dash-empty compact"><i class="bi bi-calendar2-check" aria-hidden="true"></i><h3>No upcoming appointments</h3><p><?= $isSenior?'When your assistance is scheduled, the details will appear here.':'Scheduled assistance from today onward will appear here.' ?></p></div><?php endif; ?>
 <?php foreach($schedule as $appointment): ?>
-<a class="schedule-item" href="<?= $isSenior ? BASE_URL.$prefix.'/requests.php' : BASE_URL.$prefix.'/application.php?request_id='.(int)$appointment['request_id'] ?>"><span class="schedule-time"><?= e(date('M j',strtotime($appointment['schedule_date']))) ?><strong><?= e(date('g:i A',strtotime($appointment['schedule_date']))) ?></strong></span><span><strong><?= e($appointment['request_type']) ?></strong><small><?= $isSenior?'Request #'.(int)$appointment['request_id']:e($appointment['full_name']) ?></small></span></a>
+<a class="schedule-item" href="<?= $isSenior ? BASE_URL.$prefix.'/requests.php' : BASE_URL.$prefix.'/application.php?request_id='.(int)$appointment['request_id'] ?>"><span class="schedule-time"><?= e(date('M j',strtotime($appointment['schedule_date']))) ?><strong><?= e(appointment_window_label((string) $appointment['schedule_date'], $appointment['schedule_end'] ?? null, false)) ?></strong></span><span><strong><?= e($appointment['request_type']) ?></strong><small><?= $isSenior?'Request #'.(int)$appointment['request_id']:e($appointment['full_name']) ?></small></span></a>
 <?php endforeach; ?>
 </section>
 <?php if($isSenior): ?>
