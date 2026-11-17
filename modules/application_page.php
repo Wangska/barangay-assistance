@@ -91,6 +91,10 @@ function render_application_page(array $roles): void
 <div class="panel mb-3">
 <h2 class="h5"><?= e($record['full_name']) ?> — <?= $requestId ? 'Request #'.$requestId : 'Registration #'.$userId ?></h2>
 <p>Current status: <strong><?= e($requestId ? request_status_label((string) $record['status']) : $record['status']) ?></strong></p>
+<?php if ($requestId && ($record['request_type'] ?? '') === 'Other Request' && ($record['status'] ?? '') === 'Rejected'): ?>
+<p class="alert alert-warning" role="note" data-en="This appointment was declined. You can submit another appointment." data-ceb="Gibalibaran kini nga appointment. Makasumite ka og laing appointment.">This appointment was declined. You can submit another appointment.</p>
+<?php if (trim((string) ($record['remarks'] ?? '')) !== ''): ?><p>Reason: <?= e($record['remarks']) ?></p><?php endif; ?>
+<?php endif; ?>
 <?php if ($requestId && claim_id_reminder_needed((string) $record['status'], $release)): ?>
 <p class="alert alert-info" role="note" data-en="Note: Please bring a Senior Citizen ID or any valid ID to claim the assistance." data-ceb="Timan-i: Palihog pagdala og Senior Citizen ID o bisan unsang balidong ID aron makuha ang tabang.">Note: Please bring a Senior Citizen ID or any valid ID to claim the assistance.</p>
 <?php endif; ?>

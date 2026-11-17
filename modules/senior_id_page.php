@@ -18,10 +18,9 @@ function render_senior_id_page(array $roles): void
     $backHref = BASE_URL . ($isSenior ? '/senior/dashboard.php' : $prefix . '/seniors.php');
     require __DIR__ . '/../includes/header.php';
     require __DIR__ . '/../includes/sidebar.php';
-    echo '<link rel="stylesheet" href="' . e(BASE_URL) . '/assets/css/senior-id.css?v=20261115k">';
-    echo '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Libre+Baskerville:wght@400;700&display=swap">';
+    echo '<link rel="stylesheet" href="' . e(BASE_URL) . '/assets/css/senior-id.css?v=20261117a">';
     if (!$record || trim((string) $record['id_control_number']) === '' || $record['status'] !== 'Active') {
-        echo '<div class="panel"><h1 class="h4">Digital senior ID</h1><p class="mb-3">This ID is issued when the senior registration is approved.</p><a class="btn btn-outline-primary" href="' . e($backHref) . '">Back</a></div>';
+        echo '<div class="panel"><h1 class="h4">Assistance card</h1><p class="mb-3">This card is issued when the senior registration is approved.</p><a class="btn btn-outline-primary" href="' . e($backHref) . '">Back</a></div>';
         require __DIR__ . '/../includes/footer.php';
         return;
     }
@@ -34,88 +33,67 @@ function render_senior_id_page(array $roles): void
         trim((string) $record['province']),
     ])));
     $photo = profile_photo_storage_path($record['profile_photo'] ?? null);
-    $oscaHead = trim(setting_value('osca_head_name'));
-    $captain = trim(setting_value('punong_barangay_name'));
-    $benefits = [
-        'Free medical and dental, diagnostic, and laboratory services in government facilities.',
-        'Twenty percent (20%) discount and exemption from VAT on medicine, prescribed vitamins and minerals, and medical supplies.',
-        'Discount on professional fees of the attending physician in private hospitals and medical facilities.',
-        'Discount on medical and dental services and laboratory fees in private hospitals.',
-        'Discount on domestic air fare, sea fare, and public land transportation fare.',
-        'Discount on hotels, restaurants, and recreational centers.',
-        'Discount on admission fees of theaters, cinema houses, and concert halls.',
-        'Discount on funeral and burial services.',
-        'Five percent (5%) discount on prime commodities and basic necessities.',
-        'Five percent (5%) discount on electricity and water within the prescribed monthly use.',
-        'An express lane in private, banking, commercial, and government establishments.',
-        'Abuse of these privileges is punishable by law.',
-    ];
+    $control = (string) $record['id_control_number'];
     ?>
     <div class="id-page">
         <div class="id-toolbar">
             <div>
-                <h1 class="page-title mb-1">Digital senior ID</h1>
+                <h1 class="page-title mb-1">Assistance card</h1>
                 <p class="text-muted mb-0"><?= e($name) ?></p>
             </div>
             <div class="d-flex flex-wrap gap-2">
                 <a class="btn btn-outline-secondary" href="<?= e($backHref) ?>">Back</a>
-                <button type="button" class="btn btn-primary" onclick="window.print()">Print ID</button>
+                <button type="button" class="btn btn-primary" onclick="window.print()">Print card</button>
             </div>
         </div>
         <div class="id-sheet">
             <div class="id-slot">
-            <article class="osca-card osca-front" aria-label="Front of the senior ID">
-                <div class="osca-top">
-                    <p class="osca-control">Control No. <strong><?= e($record['id_control_number']) ?></strong></p>
-                    <div class="osca-seal">
-                        <img src="<?= e(BASE_URL) ?>/assets/images/cebu-city-seal.png?v=20261115c" alt="Official Seal of the City of Cebu">
+            <article class="assist-card" aria-label="Front of the assistance card">
+                <header class="assist-card-head">
+                    <img src="<?= e(BASE_URL) ?>/assets/images/seniorlogo.png" alt="Senior Assist">
+                    <div>
+                        <p class="assist-brand">Senior Assist</p>
+                        <p>Barangay Tungkil</p>
+                        <p>Assistance card</p>
                     </div>
-                    <div class="osca-heading">
-                        <p>Republic of the Philippines</p>
-                        <p class="osca-office">Office of the Senior Citizens Affairs</p>
-                        <p class="osca-place">Minglanilla, Cebu</p>
+                    <p class="assist-control">No. <strong><?= e($control) ?></strong></p>
+                </header>
+                <div class="assist-card-body">
+                    <?php if ($photo): ?>
+                        <img class="assist-photo" src="<?= e(BASE_URL) ?>/api/senior_photo.php?senior_id=<?= (int) $record['senior_id'] ?>" alt="Photo of <?= e($name) ?>">
+                    <?php else: ?>
+                        <div class="assist-photo assist-photo-empty">Photo</div>
+                    <?php endif; ?>
+                    <div class="assist-details">
+                        <p><span>Name</span><b><?= e($name) ?></b></p>
+                        <p class="assist-address"><span>Address</span><b><?= e($address) ?></b></p>
+                        <div class="assist-meta">
+                            <p><b><?= e(senior_id_card_date($record['birthdate'])) ?> / <?= (int) senior_id_age((string) $record['birthdate']) ?></b><span>Birth date / age</span></p>
+                            <p><b><?= e(senior_id_sex((string) $record['gender'])) ?></b><span>Sex</span></p>
+                            <p><b><?= e(senior_id_card_date($record['id_issued_at'])) ?></b><span>Date issued</span></p>
+                        </div>
                     </div>
-                    <div class="osca-photo-col">
-                        <?php if ($photo): ?>
-                            <img class="osca-photo" src="<?= e(BASE_URL) ?>/api/senior_photo.php?senior_id=<?= (int) $record['senior_id'] ?>" alt="Photo of <?= e($name) ?>">
-                        <?php else: ?>
-                            <div class="osca-photo-empty">Photo</div>
-                        <?php endif; ?>
-                    </div>
                 </div>
-                <div class="osca-fields">
-                    <div class="osca-line"><span>NAME:</span><b><?= e($name) ?></b></div>
-                    <div class="osca-line osca-address"><span>ADDRESS:</span><b><?= e($address) ?></b></div>
-                </div>
-                <div class="osca-meta">
-                    <div><b><?= e(senior_id_card_date($record['birthdate'])) ?>/<?= (int) senior_id_age((string) $record['birthdate']) ?></b><span>Date of Birth/Age</span></div>
-                    <div><b><?= e(senior_id_sex((string) $record['gender'])) ?></b><span>Sex</span></div>
-                    <div><b><?= e(senior_id_card_date($record['id_issued_at'])) ?></b><span>Date Issued</span></div>
-                </div>
-                <p class="osca-legal">THIS CARD IS NON-TRANSFERABLE AND<br>VALID ANYWHERE IN THE COUNTRY</p>
-                <div class="osca-signature">
-                    <div class="osca-sign-line" aria-label="Sign here"></div>
-                    <p class="osca-printed"><?= e($name) ?></p>
-                    <p class="osca-caption">Printed Name and Signature/Thumbmark</p>
-                </div>
+                <p class="assist-note">System record for Barangay Tungkil. This does not replace the OSCA senior citizen ID.</p>
             </article>
             </div>
             <div class="id-slot">
-            <article class="osca-card osca-back" aria-label="Back of the senior ID">
-                <div class="osca-emergency">
-                    <span>IN CASE OF EMERGENCY</span>
+            <article class="assist-card" aria-label="Back of the assistance card">
+                <header class="assist-card-head">
+                    <img src="<?= e(BASE_URL) ?>/assets/images/seniorlogo.png" alt="Senior Assist">
+                    <div>
+                        <p class="assist-brand">Senior Assist</p>
+                        <p>Barangay Tungkil</p>
+                        <p>Emergency contact</p>
+                    </div>
+                    <p class="assist-control">No. <strong><?= e($control) ?></strong></p>
+                </header>
+                <div class="assist-emergency">
+                    <span>In case of emergency</span>
                     <strong><?= e(trim((string) $record['emergency_contact_name']) !== '' ? $record['emergency_contact_name'] : 'Not recorded') ?></strong>
-                    <span>PLEASE CONTACT:</span>
-                    <b><?= e(trim((string) $record['emergency_contact_phone']) !== '' ? $record['emergency_contact_phone'] : '') ?></b>
+                    <b><?= e(trim((string) $record['emergency_contact_phone']) !== '' ? $record['emergency_contact_phone'] : 'No phone recorded') ?></b>
                 </div>
-                <h2>Benefits and Privileges under Republic Act No. 9994</h2>
-                <ul class="osca-benefits">
-                    <?php foreach ($benefits as $benefit): ?><li><?= e($benefit) ?></li><?php endforeach; ?>
-                </ul>
-                <div class="osca-signs">
-                    <div><span><?= e($oscaHead) ?></span><small>OSCA HEAD</small></div>
-                    <div><span><?= e($captain) ?></span><small>PUNONG BARANGAY</small></div>
-                </div>
+                <p class="assist-use">This card identifies the senior in the Barangay Tungkil assistance system when they request help or claim assistance.</p>
             </article>
             </div>
         </div>

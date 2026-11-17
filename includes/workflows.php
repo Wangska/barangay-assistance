@@ -63,7 +63,7 @@ function notification_destination(array $n, string $role): ?string
 
 function translated_label(string $text): string
 {
-    $map=['Dashboard'=>'Pangunang panid','Application'=>'Aplikasyon','Profile'=>'Personal nga impormasyon','Notifications'=>'Mga pahibalo','Requests'=>'Mga hangyo','Released Assistance'=>'Gipagawas nga tabang','My Assistance Requests'=>'Akong mga hangyo sa tabang','My Senior ID'=>'Akong Senior ID','Claim queue'=>'Pila sa pagkuha','Assistance'=>'Tabang','Appointments'=>'Mga appointment','Back to my requests'=>'Balik sa akong mga hangyo','Back to dashboard'=>'Balik sa dashboard','Announcements'=>'Mga anunsyo','Events'=>'Mga kalihokan','Logout'=>'Paggawas'];
+    $map=['Dashboard'=>'Pangunang panid','Application'=>'Aplikasyon','Profile'=>'Personal nga impormasyon','Notifications'=>'Mga pahibalo','Requests'=>'Mga hangyo','Released Assistance'=>'Gipagawas nga tabang','My Assistance Requests'=>'Akong mga hangyo sa tabang','Assistance card'=>'Kard sa tabang','My Senior ID'=>'Akong Senior ID','Claim queue'=>'Pila sa pagkuha','Assistance'=>'Tabang','Appointments'=>'Mga appointment','Reports'=>'Mga report','Back to my requests'=>'Balik sa akong mga hangyo','Back to dashboard'=>'Balik sa dashboard','Announcements'=>'Mga anunsyo','Events'=>'Mga kalihokan','Logout'=>'Paggawas'];
     return '<span data-en="'.e($text).'" data-ceb="'.e($map[$text] ?? $text).'">'.e($text).'</span>';
 }
 

@@ -77,6 +77,221 @@ function appointment_hour_options(): array
     return $options;
 }
 
+function appointment_slot_hours(): array
+{
+    $options = [];
+    for ($hour = 8; $hour <= 17; $hour++) {
+        $value = sprintf('%02d:00', $hour);
+        $options[$value] = date('g:i A', strtotime($value));
+    }
+    return $options;
+}
+
+function appointment_slots_per_hour(): int
+{
+    $value = trim(setting_value('appointment_slots_per_hour', '5'));
+    $count = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 50]]);
+    return $value === (string) $count ? $count : 5;
+}
+
+function easter_sunday(int $year): DateTimeImmutable
+{
+    $a = $year % 19;
+    $b = intdiv($year, 100);
+    $c = $year % 100;
+    $d = intdiv($b, 4);
+    $e = $b % 4;
+    $f = intdiv($b + 8, 25);
+    $g = intdiv($b - $f + 1, 3);
+    $h = (19 * $a + $b - $d - $g + 15) % 30;
+    $i = intdiv($c, 4);
+    $k = $c % 4;
+    $l = (32 + 2 * $e + 2 * $i - $h - $k) % 7;
+    $m = intdiv($a + 11 * $h + 22 * $l, 451);
+    $month = intdiv($h + $l - 7 * $m + 114, 31);
+    $day = (($h + $l - 7 * $m + 114) % 31) + 1;
+    return new DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day));
+}
+
+function proclaimed_regular_holidays(): array
+{
+    return [
+        '2026-03-20' => "Eid'l Fitr",
+        '2026-05-27' => "Eid'l Adha",
+    ];
+}
+
+function regular_holidays(int $year): array
+{
+    static $cache = [];
+    if (isset($cache[$year])) {
+        return $cache[$year];
+    }
+    $easter = easter_sunday($year);
+    $heroes = new DateTimeImmutable(sprintf('%04d-08-31', $year));
+    while ((int) $heroes->format('N') !== 1) {
+        $heroes = $heroes->modify('-1 day');
+    }
+    $holidays = [
+        sprintf('%04d-01-01', $year) => "New Year's Day",
+        $easter->modify('-3 days')->format('Y-m-d') => 'Maundy Thursday',
+        $easter->modify('-2 days')->format('Y-m-d') => 'Good Friday',
+        sprintf('%04d-04-09', $year) => 'Araw ng Kagitingan',
+        sprintf('%04d-05-01', $year) => 'Labor Day',
+        sprintf('%04d-06-12', $year) => 'Independence Day',
+        $heroes->format('Y-m-d') => 'National Heroes Day',
+        sprintf('%04d-11-30', $year) => 'Bonifacio Day',
+        sprintf('%04d-12-25', $year) => 'Christmas Day',
+        sprintf('%04d-12-30', $year) => 'Rizal Day',
+    ];
+    foreach (proclaimed_regular_holidays() as $date => $name) {
+        if (str_starts_with($date, sprintf('%04d-', $year))) {
+            $holidays[$date] = $name;
+        }
+    }
+    ksort($holidays);
+    $cache[$year] = $holidays;
+    return $holidays;
+}
+
+function regular_holiday(string $day): ?string
+{
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $day);
+    if (!$date instanceof DateTimeImmutable || $date->format('Y-m-d') !== $day) {
+        return null;
+    }
+    return regular_holidays((int) $date->format('Y'))[$day] ?? null;
+}
+
+function regular_holiday_map(int $fromYear, int $toYear): array
+{
+    $map = [];
+    for ($year = $fromYear; $year <= $toYear; $year++) {
+        foreach (regular_holidays($year) as $date => $name) {
+            $map[$date] = $name;
+        }
+    }
+    return $map;
+}
+
+function appointment_is_weekday(string $day): bool
+{
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $day);
+    return $date instanceof DateTimeImmutable
+        && $date->format('Y-m-d') === $day
+        && (int) $date->format('N') <= 5;
+}
+
+function appointment_day_is_open(string $day): bool
+{
+    return appointment_is_weekday($day) && regular_holiday($day) === null;
+}
+
+function appointment_next_weekday(string $day): string
+{
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $day) ?: new DateTimeImmutable('today');
+    while (!appointment_day_is_open($date->format('Y-m-d'))) {
+        $date = $date->modify('+1 day');
+    }
+    return $date->format('Y-m-d');
+}
+
+function appointment_slot_is_bookable(string $day, string $hour): bool
+{
+    $start = DateTimeImmutable::createFromFormat('!Y-m-d H:i', $day . ' ' . $hour);
+    return $start instanceof DateTimeImmutable
+        && $start->format('Y-m-d H:i') === $day . ' ' . $hour
+        && appointment_day_is_open($day)
+        && $start >= new DateTimeImmutable('now');
+}
+
+function appointment_slot_usage(PDO $pdo, string $day, int $excludeRequestId = 0): array
+{
+    $counts = array_fill_keys(array_keys(appointment_slot_hours()), 0);
+    $query = $pdo->prepare("SELECT DATE_FORMAT(schedule_date, '%H:%i') AS slot_hour, COUNT(*) AS taken
+        FROM assistance_requests
+        WHERE request_type = 'Other Request'
+          AND status IN ('Pending', 'Scheduled', 'Completed')
+          AND schedule_date >= ? AND schedule_date < DATE_ADD(?, INTERVAL 1 DAY)
+          AND request_id <> ?
+        GROUP BY slot_hour");
+    $query->execute([$day . ' 00:00:00', $day, $excludeRequestId]);
+    foreach ($query as $row) {
+        $hour = (string) $row['slot_hour'];
+        if (isset($counts[$hour])) {
+            $counts[$hour] = (int) $row['taken'];
+        }
+    }
+    return $counts;
+}
+
+function appointment_slot_choices(string $day, int $excludeRequestId = 0): array
+{
+    $limit = appointment_slots_per_hour();
+    $usage = appointment_slot_usage(db(), $day, $excludeRequestId);
+    $holiday = regular_holiday($day);
+    $weekend = !appointment_is_weekday($day);
+    $choices = [];
+    foreach (appointment_slot_hours() as $value => $label) {
+        $left = max(0, $limit - ($usage[$value] ?? 0));
+        $bookable = appointment_slot_is_bookable($day, $value);
+        $choices[] = [
+            'value' => $value,
+            'label' => $label,
+            'left' => $left,
+            'open' => $bookable && $left > 0,
+            'state' => $holiday !== null ? 'holiday' : ($weekend ? 'weekend' : (!$bookable ? 'closed' : ($left > 0 ? 'open' : 'full'))),
+        ];
+    }
+    return $choices;
+}
+
+function appointment_slot_values(string $rawDate, string $rawHour): array
+{
+    $hours = appointment_slot_hours();
+    $day = DateTime::createFromFormat('!Y-m-d', $rawDate);
+    $holiday = regular_holiday($rawDate);
+    if ($holiday !== null) {
+        throw new RuntimeException($holiday . ' is a regular holiday. The office is closed. Choose another Monday to Friday.');
+    }
+    if (!$day || $day->format('Y-m-d') !== $rawDate || !isset($hours[$rawHour]) || !appointment_slot_is_bookable($rawDate, $rawHour)) {
+        throw new RuntimeException('Choose a Monday to Friday appointment, today or later, and an open hour from 8:00 AM to 5:00 PM. Saturday, Sunday, and regular holidays are closed.');
+    }
+    $start = $rawDate . ' ' . $rawHour . ':00';
+    $end = (new DateTimeImmutable($start))->modify('+1 hour')->format('Y-m-d H:i:s');
+    return [$start, $end, $rawDate];
+}
+
+function appointment_slot_fields(int $requestId, ?string $scheduleDate): void
+{
+    $day = $scheduleDate ? date('Y-m-d', strtotime($scheduleDate)) : date('Y-m-d');
+    if ($day < date('Y-m-d') || !appointment_day_is_open($day)) {
+        $day = appointment_next_weekday(date('Y-m-d'));
+    }
+    $savedHour = $scheduleDate && date('Y-m-d', strtotime($scheduleDate)) === $day ? date('H:i', strtotime($scheduleDate)) : '';
+    $choices = appointment_slot_choices($day, $requestId);
+    $selected = '';
+    foreach ($choices as $choice) {
+        if ($choice['value'] === $savedHour && $choice['open']) {
+            $selected = $choice['value'];
+            break;
+        }
+    }
+    if ($selected === '') {
+        foreach ($choices as $choice) {
+            if ($choice['open']) {
+                $selected = $choice['value'];
+                break;
+            }
+        }
+    }
+    ?>
+    <label class="col-12 col-md-4">Appointment date<input class="form-control appointment-day" type="text" name="appointment_date" min="<?= date('Y-m-d') ?>" required value="<?= e($day) ?>" data-request-id="<?= $requestId ?>" inputmode="none" autocomplete="off" readonly></label>
+    <label class="col-12 col-md-4">Hour<select class="form-select appointment-hour" name="appointment_hour" required><?php if ($selected === ''): ?><option value="" selected disabled>No open hour</option><?php endif; ?><?php foreach ($choices as $choice): ?><option value="<?= e($choice['value']) ?>" <?= $choice['value'] === $selected ? 'selected' : '' ?> <?= $choice['open'] ? '' : 'disabled' ?>><?= e($choice['label'] . ' (' . ($choice['state'] === 'open' ? $choice['left'] . ' left' : $choice['state']) . ')') ?></option><?php endforeach; ?></select></label>
+    <p class="col-12 small text-muted mb-0" data-en="Dates in red are Sundays and regular holidays. The office is closed, so those days cannot be chosen." data-ceb="Ang pula nga petsa kay Dominggo ug regular holiday. Sirado ang opisina, busa dili kini mapili.">Dates in red are Sundays and regular holidays. The office is closed, so those days cannot be chosen.</p>
+    <?php
+}
+
 function appointment_window_label(?string $start, ?string $end, bool $includeDate = true): string
 {
     if ($start === null || trim($start) === '') {
@@ -157,10 +372,16 @@ function appointment_window_values(string $rawDate, string $rawStart, string $ra
     return [$rawDate . ' ' . $rawStart . ':00', $rawDate . ' ' . $rawEnd . ':00', $rawDate];
 }
 
-function set_other_appointment(int $requestId, string $rawDate, string $rawStart, string $rawEnd, int $staffId): string
+function set_other_appointment(int $requestId, string $rawDate, string $rawHour, int $staffId): string
 {
-    [$start, $end, $rawDate] = appointment_window_values($rawDate, $rawStart, $rawEnd);
+    [$start, $end, $rawDate] = appointment_slot_values($rawDate, $rawHour);
     $pdo = db();
+    $lockName = 'appt-' . str_replace(['-', ':', ' '], '', $start);
+    $locked = $pdo->query('SELECT GET_LOCK(' . $pdo->quote($lockName) . ', 5)')->fetchColumn();
+    if ((string) $locked !== '1') {
+        throw new RuntimeException('That hour is being booked. Try again.');
+    }
+    try {
     $pdo->beginTransaction();
     try {
         $query = $pdo->prepare('SELECT ar.status, ar.request_type, s.user_id, u.full_name
@@ -178,6 +399,9 @@ function set_other_appointment(int $requestId, string $rawDate, string $rawStart
         if ($claimed->fetchColumn()) {
             throw new RuntimeException('This appointment is already done, so the date stays the same.');
         }
+        if (appointment_slot_taken($pdo, $start, $end, $requestId) >= appointment_slots_per_hour()) {
+            throw new RuntimeException('That hour is full. Choose another open hour.');
+        }
         $pdo->prepare("UPDATE assistance_requests SET status='Scheduled', schedule_date=?, schedule_end=?, processed_by=? WHERE request_id=?")
             ->execute([$start, $end, $staffId, $requestId]);
         $queue = claim_queue_for_request($pdo, $requestId, 'Appointment', $rawDate);
@@ -193,6 +417,73 @@ function set_other_appointment(int $requestId, string $rawDate, string $rawStart
             $pdo->rollBack();
         }
         throw $error;
+    }
+    } finally {
+        $pdo->query('SELECT RELEASE_LOCK(' . $pdo->quote($lockName) . ')');
+    }
+}
+
+function appointment_slot_taken(PDO $pdo, string $start, string $end, int $excludeRequestId = 0): int
+{
+    $taken = $pdo->prepare("SELECT COUNT(*) FROM assistance_requests WHERE request_type = 'Other Request' AND status IN ('Pending', 'Scheduled', 'Completed') AND schedule_date >= ? AND schedule_date < ? AND request_id <> ?");
+    $taken->execute([$start, $end, $excludeRequestId]);
+    return (int) $taken->fetchColumn();
+}
+
+function confirm_other_appointment(int $requestId, int $staffId): string
+{
+    $pdo = db();
+    $pdo->beginTransaction();
+    $lockName = null;
+    try {
+        $query = $pdo->prepare('SELECT ar.status, ar.request_type, ar.schedule_date, ar.schedule_end, s.user_id, u.full_name
+            FROM assistance_requests ar
+            JOIN senior_citizens s ON s.senior_id = ar.senior_id
+            JOIN users u ON u.user_id = s.user_id
+            WHERE ar.request_id = ? FOR UPDATE');
+        $query->execute([$requestId]);
+        $request = $query->fetch();
+        if (!$request || $request['request_type'] !== 'Other Request' || !in_array($request['status'], ['Pending', 'Under Review'], true)) {
+            throw new RuntimeException('Approve the other request while it is still pending.');
+        }
+        $start = trim((string) ($request['schedule_date'] ?? ''));
+        $end = trim((string) ($request['schedule_end'] ?? ''));
+        $day = $start !== '' ? date('Y-m-d', strtotime($start)) : '';
+        $hour = $start !== '' ? date('H:i', strtotime($start)) : '';
+        $expectedEnd = $start !== '' ? (new DateTimeImmutable($start))->modify('+1 hour')->format('Y-m-d H:i:s') : '';
+        $holiday = $day !== '' ? regular_holiday($day) : null;
+        if ($holiday !== null) {
+            throw new RuntimeException($holiday . ' is a regular holiday. The office is closed. Decline it so the senior can choose another date.');
+        }
+        if ($start === '' || $end !== $expectedEnd || !appointment_slot_is_bookable($day, $hour)) {
+            throw new RuntimeException('This appointment hour has passed or was not chosen. Decline it so the senior can choose another date and hour.');
+        }
+        $lockName = 'appt-' . str_replace(['-', ':', ' '], '', $start);
+        $locked = $pdo->query('SELECT GET_LOCK(' . $pdo->quote($lockName) . ', 5)')->fetchColumn();
+        if ((string) $locked !== '1') {
+            throw new RuntimeException('That hour is being booked. Try again.');
+        }
+        if (appointment_slot_taken($pdo, $start, $expectedEnd, $requestId) >= appointment_slots_per_hour()) {
+            throw new RuntimeException('That hour is full. Decline it so the senior can choose another hour.');
+        }
+        $pdo->prepare("UPDATE assistance_requests SET status='Scheduled', processed_by=? WHERE request_id=?")->execute([$staffId, $requestId]);
+        $queue = claim_queue_for_request($pdo, $requestId, 'Appointment', $day);
+        $label = claim_queue_label($queue);
+        $when = appointment_window_label($start, $expectedEnd);
+        application_event((int) $request['user_id'], $requestId, 'Scheduled', 'Appointment confirmed for ' . $when . '. Appointment queue number ' . $label . '.', $staffId);
+        notify_user((int) $request['user_id'], 'Appointment confirmed', 'Your other request is confirmed for ' . $when . '. Appointment queue number ' . $label . '.', null, $requestId);
+        audit_log($staffId, 'Confirmed Other Request appointment ' . $label, 'assistance_requests', $requestId);
+        $pdo->commit();
+        return 'Appointment ' . $label . ' confirmed for ' . $request['full_name'] . ' on ' . $when . '.';
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $error;
+    } finally {
+        if ($lockName !== null) {
+            $pdo->query('SELECT RELEASE_LOCK(' . $pdo->quote($lockName) . ')');
+        }
     }
 }
 

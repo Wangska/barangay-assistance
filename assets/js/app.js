@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     'Monthly pension amount':'Binulan nga pensyon', 'Financial status':'Kahimtang sa kwarta',
     'Released':'Gipagawas', 'Requested':'Gipangayo', 'Reason':'Rason',
     'Save Profile':'I-save ang impormasyon', 'View submitted document':'Tan-awa ang gisumite nga dokumento',
-    'Track application':'Subaya ang aplikasyon', 'My Senior ID':'Akong Senior ID', 'Digital senior ID':'Digital nga Senior ID', 'Print ID':'I-print ang ID', 'Download PNG':'I-download ang PNG', 'Claim queue':'Pila sa pagkuha', 'Mark as claimed':'Markahi nga nakuha na', 'Close':'Sirado', 'Application tracking':'Pagsubay sa aplikasyon', 'Application timeline':'Kasaysayan sa aplikasyon', 'Previous':'Miagi', 'Next':'Sunod', 'Filter':'Salain',
+    'Track application':'Subaya ang aplikasyon', 'Assistance card':'Kard sa tabang', 'My Senior ID':'Akong Senior ID', 'Digital senior ID':'Digital nga Senior ID', 'Print card':'I-print ang kard', 'Print ID':'I-print ang ID', 'Download PNG':'I-download ang PNG', 'Claim queue':'Pila sa pagkuha', 'Mark as claimed':'Markahi nga nakuha na', 'Close':'Sirado', 'Application tracking':'Pagsubay sa aplikasyon', 'Application timeline':'Kasaysayan sa aplikasyon', 'Previous':'Miagi', 'Next':'Sunod', 'Filter':'Salain',
     'Full Name':'Kompletong ngalan', 'Phone':'Telepono', 'Address':'Puy-anan',
     'Emergency Contact':'Kontakon sa emerhensiya', 'Emergency Phone':'Numero sa emerhensiya',
     'Valid ID':'Balidong ID', 'Medical Notes':'Mga medikal nga nota', 'All notifications':'Tanang pahibalo',

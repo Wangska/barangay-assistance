@@ -12,12 +12,24 @@ function render_requests_page(array $roles): void {
             $requestId=(int)($_POST['request_id'] ?? 0);
             if (($_POST['action'] ?? '')==='release') {
                 release_assistance($requestId,$_POST,(int)$user['user_id']);
-            } elseif (($_POST['action'] ?? '')==='appointment') {
-                if ($isAdmin) throw new RuntimeException('Staff set the appointment for an other request.');
-                set_other_appointment($requestId, (string) ($_POST['appointment_date'] ?? ''), (string) ($_POST['appointment_start'] ?? ''), (string) ($_POST['appointment_end'] ?? ''), (int) $user['user_id']);
             } else {
-                if ($isAdmin) throw new RuntimeException('Staff approve or decline the request. Staff set the appointment for an other request.');
+                if ($isAdmin) throw new RuntimeException('Staff approve or decline the request.');
                 $status=$_POST['status'] ?? '';
+                if ($status==='Approved') {
+                    $kind = db()->prepare('SELECT request_type FROM assistance_requests WHERE request_id=?');
+                    $kind->execute([$requestId]);
+                    if (is_other_request((string) $kind->fetchColumn())) {
+                        $confirmed = confirm_other_appointment($requestId, (int) $user['user_id']);
+                        $phone = db()->prepare('SELECT u.user_id, u.phone_number FROM assistance_requests ar JOIN senior_citizens s ON s.senior_id=ar.senior_id JOIN users u ON u.user_id=s.user_id WHERE ar.request_id=?');
+                        $phone->execute([$requestId]);
+                        $senior = $phone->fetch();
+                        if ($senior) {
+                            send_sms((int) $senior['user_id'], (string) $senior['phone_number'], $confirmed);
+                        }
+                        flash('success', $confirmed);
+                        redirect($prefix.'/requests.php');
+                    }
+                }
                 $remarks=trim($_POST['remarks'] ?? '');
                 if (!in_array($status,['Approved','Rejected'],true)) throw new RuntimeException('Approve the request, or decline it with a reason.');
                 if ($status==='Rejected' && $remarks==='') throw new RuntimeException('Explain the reason for the decline.');
@@ -25,18 +37,30 @@ function render_requests_page(array $roles): void {
                 try {
                     $q=$pdo->prepare('SELECT ar.*,s.user_id FROM assistance_requests ar JOIN senior_citizens s ON s.senior_id=ar.senior_id WHERE request_id=? FOR UPDATE');
                     $q->execute([$requestId]);$r=$q->fetch();
-                    if (!$r || in_array($r['status'],['Approved','Scheduled','Completed'],true)) throw new RuntimeException('This request is already with the administrator.');
+                    if (!$r) throw new RuntimeException('This request could not be found.');
+                    if ($r['status']==='Rejected') throw new RuntimeException('This request is already declined.');
+                    if (in_array($r['status'],['Approved','Scheduled','Completed'],true)) throw new RuntimeException('This request is already with the administrator.');
                     if ($status!==$r['status'] || $remarks!==(string)$r['remarks']) {
                         $pdo->prepare('UPDATE assistance_requests SET status=?,remarks=?,processed_by=? WHERE request_id=?')->execute([$status,$remarks,$user['user_id'],$requestId]);
                         application_event((int)$r['user_id'],$requestId,$status,$remarks,(int)$user['user_id']);
-                        notify_user((int)$r['user_id'],'Assistance Request Update','Request #'.$requestId.' is now '.$status.'. '.$remarks,null,$requestId);
+                        $notice = $status==='Rejected'
+                            ? (is_other_request((string)$r['request_type'])
+                                ? 'Your appointment request #'.$requestId.' was declined. Reason: '.$remarks.'. You can submit another appointment.'
+                                : 'Request #'.$requestId.' was declined. Reason: '.$remarks)
+                            : 'Request #'.$requestId.' is now '.request_status_label($status).'. '.$remarks;
+                        notify_user((int)$r['user_id'], $status==='Rejected' ? 'Request declined' : 'Assistance Request Update', $notice, null, $requestId);
                         audit_log((int)$user['user_id'],'Updated assistance request','assistance_requests',$requestId);
                     }
                     $pdo->commit();
                 } catch(Throwable $e) { if($pdo->inTransaction())$pdo->rollBack();throw $e; }
                 if ($status!==$r['status']) {
                     $phone=$pdo->prepare('SELECT phone_number FROM users WHERE user_id=?');$phone->execute([$r['user_id']]);
-                    send_sms((int)$r['user_id'],(string)$phone->fetchColumn(),'Your assistance request #'.$requestId.' is now '.$status.'.');
+                    $sms = $status==='Rejected'
+                        ? (is_other_request((string)$r['request_type'])
+                            ? 'Your appointment request #'.$requestId.' was declined. Reason: '.$remarks.'. You can submit another appointment.'
+                            : 'Request #'.$requestId.' was declined. Reason: '.$remarks)
+                        : 'Your assistance request #'.$requestId.' is now '.request_status_label($status).'.';
+                    send_sms((int)$r['user_id'],(string)$phone->fetchColumn(),$sms);
                 }
             }
             flash('success','Request updated.');
@@ -53,9 +77,9 @@ function render_requests_page(array $roles): void {
 ?>
 <h1 class="page-title">Assistance Requests</h1>
 <?php if ($isAdmin): ?>
-<p class="text-muted">Staff approve or decline each request and set the appointment for an other request. You and the staff can enter the amount and release date for assistance. That gives the queue number. Death assistance reference amount: PHP <?= e(number_format((float) $deathAmount, 2)) ?>.</p>
+<p class="text-muted">Staff approve or decline each request. The senior chooses the date and hour for an other request. Saturday, Sunday, and regular holidays are closed. You and the staff can enter the amount and release date for assistance. That gives the queue number. Death assistance reference amount: PHP <?= e(number_format((float) $deathAmount, 2)) ?>.</p>
 <?php else: ?>
-<p class="text-muted">Review the request and its attachment, then approve or decline it. After approval, enter the amount and release date for assistance. The administrator can record that release as well. For an other request, set the appointment date and timeframe. The officer verifies when that visit is done.</p>
+<p class="text-muted">Review the request and its attachment, then approve or decline it. After approval, enter the amount and release date for assistance. The administrator can record that release as well. For an other request, the senior chooses a Monday to Friday hour. Saturday, Sunday, and regular holidays are closed. Approving it confirms that appointment. The officer verifies when the visit is done.</p>
 <?php endif; ?>
 <?php if(!$rows): ?><div class="panel">No assistance requests yet.</div><?php endif; ?>
 <?php foreach($rows as $r): ?>
@@ -74,28 +98,15 @@ function render_requests_page(array $roles): void {
 <?php foreach ($queuesByRequest[(int) $r['request_id']] ?? [] as $queue): ?>
 <p class="mb-1">Queue <?= e(claim_queue_label($queue)) ?> · <?= e($queue['queue_type']) ?> · <?= e(date('M j, Y', strtotime($queue['queue_date']))) ?> · <?= $queue['claimed_at'] ? 'Claimed' : 'Waiting' ?></p>
 <?php endforeach; ?>
-<?php
-$appointmentClaimed = false;
-foreach ($queuesByRequest[(int) $r['request_id']] ?? [] as $queue) {
-    if ($queue['queue_type'] === 'Appointment' && $queue['claimed_at']) {
-        $appointmentClaimed = true;
-    }
-}
-?>
 <?php if (is_other_request((string) $r['request_type']) && !empty($r['schedule_date'])): ?><p class="mb-1">Appointment: <?= e(appointment_window_label((string) $r['schedule_date'], $r['schedule_end'] ?? null)) ?></p><?php endif; ?>
-<?php if(!$isAdmin && !in_array($r['status'],['Approved','Scheduled','Completed'],true)): ?>
+<?php if ($r['status']==='Rejected'): ?>
+<?php if (trim((string) $r['remarks']) !== ''): ?><p class="mb-0">Reason: <?= e($r['remarks']) ?></p><?php endif; ?>
+<?php elseif(!$isAdmin && !in_array($r['status'],['Approved','Scheduled','Completed'],true)): ?>
 <form method="post" class="row g-2 mb-3">
 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="request_id" value="<?= (int)$r['request_id'] ?>">
 <label class="col-12 col-md-6">Remarks<input class="form-control" name="remarks" value="<?= e($r['remarks']) ?>" placeholder="Required when declining"></label>
-<div class="col-12 d-flex flex-wrap gap-2"><button class="btn btn-primary" name="status" value="Approved" data-review="approve" data-review-name="<?= e($r['full_name']) ?>" data-review-type="<?= e($r['request_type']) ?>">Approve</button><button class="btn btn-outline-danger" name="status" value="Rejected">Decline</button></div>
+<div class="col-12 d-flex flex-wrap gap-2"><button class="btn btn-primary" name="status" value="Approved" data-review="approve" data-review-name="<?= e($r['full_name']) ?>" data-review-type="<?= e($r['request_type']) ?>" data-review-when="<?= e(is_other_request((string) $r['request_type']) && !empty($r['schedule_date']) ? appointment_window_label((string) $r['schedule_date'], $r['schedule_end'] ?? null) : '') ?>">Approve</button><button class="btn btn-outline-danger" name="status" value="Rejected" data-review="decline" data-review-name="<?= e($r['full_name']) ?>" data-review-type="<?= e($r['request_type']) ?>" data-review-when="<?= e(is_other_request((string) $r['request_type']) && !empty($r['schedule_date']) ? appointment_window_label((string) $r['schedule_date'], $r['schedule_end'] ?? null) : '') ?>">Decline</button></div>
 </form>
-<?php elseif(!$isAdmin && is_other_request((string) $r['request_type']) && in_array($r['status'],['Approved','Scheduled'],true) && !$appointmentClaimed): ?>
-<form method="post" class="row g-2 mt-2">
-<input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="request_id" value="<?= (int)$r['request_id'] ?>"><input type="hidden" name="action" value="appointment">
-<?php appointment_window_fields($r['schedule_date'] ?? date('Y-m-d') . ' 08:00:00', $r['schedule_end'] ?? date('Y-m-d') . ' 17:00:00'); ?>
-<div class="col-12 col-md-2 d-flex align-items-end"><button class="btn btn-primary">Set appointment</button></div>
-</form>
-<p class="text-muted">Choose the day and the hours, from 8:00 AM to 5:00 PM. The officer verifies the visit when it is done.</p>
 <?php elseif(!is_other_request((string) $r['request_type']) && in_array($r['status'],['Approved','Scheduled'],true)): ?>
 <form method="post" class="row g-2 mt-2">
 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="request_id" value="<?= (int)$r['request_id'] ?>">
@@ -112,9 +123,9 @@ foreach ($queuesByRequest[(int) $r['request_id']] ?? [] as $queue) {
 </form>
 <p class="text-muted">Choose the hours they can claim, from 8:00 AM to 5:00 PM. The queue number is given when the amount, release date, and claim hours are recorded.</p>
 <?php elseif($isAdmin && is_other_request((string) $r['request_type']) && in_array($r['status'],['Approved','Scheduled'],true)): ?>
-<p class="text-muted">Staff set the appointment for this request. The officer verifies when the visit is done.</p>
+<p class="text-muted">The senior chose this appointment. Staff approve or decline it. The officer verifies when the visit is done.</p>
 <?php elseif($isAdmin && $r['status']!=='Completed'): ?>
-<p class="text-muted"><?= is_other_request((string) $r['request_type']) ? 'Waiting for staff to approve this request and set the appointment.' : 'Waiting for staff to approve or decline this request before the amount and release date can be recorded.' ?></p>
+<p class="text-muted"><?= is_other_request((string) $r['request_type']) ? 'Waiting for staff to approve or decline this request.' : 'Waiting for staff to approve or decline this request before the amount and release date can be recorded.' ?></p>
 <?php endif; ?>
 </article>
 <?php endforeach; ?>
@@ -132,6 +143,51 @@ document.querySelectorAll('form').forEach(form => {
     };
     start.addEventListener('change', limitWindow);
     limitWindow();
+});
+document.querySelectorAll('.appointment-day').forEach((day) => {
+    const hour = day.form ? day.form.querySelector('.appointment-hour') : null;
+    if (!hour) return;
+    day.addEventListener('change', async () => {
+        if (!day.value) return;
+        const base = document.body.dataset.baseUrl || '';
+        const response = await fetch(base + '/api/appointment_slots.php?date=' + encodeURIComponent(day.value) + '&request_id=' + encodeURIComponent(day.dataset.requestId || '0'), { headers: { Accept: 'application/json' } });
+        if (!response.ok) return;
+        const data = await response.json();
+        const current = hour.value;
+        const slots = Array.isArray(data.hours) ? data.hours : [];
+        if (slots.length && slots.every((slot) => slot.state === 'weekend' || slot.state === 'holiday')) {
+            hour.replaceChildren();
+            const closed = document.createElement('option');
+            closed.value = '';
+            closed.disabled = true;
+            closed.selected = true;
+            closed.textContent = slots[0].state === 'holiday'
+                ? (data.holiday ? data.holiday + '. ' : '') + 'Regular holiday. The office is closed.'
+                : 'Saturday and Sunday are closed';
+            hour.appendChild(closed);
+            return;
+        }
+        hour.replaceChildren();
+        if (!slots.some((slot) => slot.open)) {
+            const empty = document.createElement('option');
+            empty.value = '';
+            empty.disabled = true;
+            empty.selected = true;
+            empty.textContent = 'No open hour';
+            hour.appendChild(empty);
+        }
+        slots.forEach((slot) => {
+            const option = document.createElement('option');
+            option.value = slot.value;
+            option.textContent = slot.label + ' (' + (slot.open ? slot.left + ' left' : slot.state) + ')';
+            option.disabled = !slot.open;
+            hour.appendChild(option);
+        });
+        const keep = [...hour.options].find((option) => option.value === current && !option.disabled);
+        const first = [...hour.options].find((option) => option.value && !option.disabled);
+        if (keep) hour.value = keep.value;
+        else if (first) hour.value = first.value;
+    });
 });
 </script>
 <div class="modal fade" id="action-confirm" tabindex="-1" aria-labelledby="action-confirm-title" aria-hidden="true">
@@ -184,6 +240,19 @@ document.querySelectorAll('form').forEach(form => {
         pendingButton = null;
         pendingKind = '';
     };
+    document.querySelectorAll('[data-review="decline"]').forEach((button) => {
+        const remarks = button.form ? button.form.querySelector('[name="remarks"]') : null;
+        if (remarks) remarks.addEventListener('input', () => remarks.setCustomValidity(''));
+        button.addEventListener('click', (event) => {
+            if (!remarks) return;
+            remarks.setCustomValidity('');
+            if (remarks.value.trim() === '') {
+                event.preventDefault();
+                remarks.setCustomValidity('Explain the reason for the decline.');
+                remarks.reportValidity();
+            }
+        }, true);
+    });
     document.querySelectorAll('form').forEach((form) => {
         form.addEventListener('submit', (event) => {
             const submitter = event.submitter;
@@ -196,17 +265,38 @@ document.querySelectorAll('form').forEach(form => {
                 form.dataset.submitting = '1';
                 return;
             }
+            const remarks = form.querySelector('[name="remarks"]');
+            if (remarks) remarks.setCustomValidity('');
+            if (submitter.dataset.review === 'decline' && (!remarks || remarks.value.trim() === '')) {
+                event.preventDefault();
+                if (remarks) {
+                    remarks.setCustomValidity('Explain the reason for the decline.');
+                    remarks.reportValidity();
+                }
+                return;
+            }
             event.preventDefault();
             if (modalEl.classList.contains('show')) return;
             pendingForm = form;
             pendingButton = submitter;
             pendingKind = submitter.dataset.review;
             const name = submitter.dataset.reviewName || 'this senior';
+            const when = submitter.dataset.reviewWhen || '';
             if (pendingKind === 'approve') {
                 title.textContent = 'Approve request';
                 confirmButton.className = 'btn btn-primary';
                 confirmButton.textContent = 'Approve';
-                text.textContent = 'Approve the ' + (submitter.dataset.reviewType || 'assistance') + ' request for ' + name + '?';
+                text.textContent = when !== ''
+                    ? 'Approve the other request for ' + name + ' on ' + when + '?'
+                    : 'Approve the ' + (submitter.dataset.reviewType || 'assistance') + ' request for ' + name + '?';
+            } else if (pendingKind === 'decline') {
+                title.textContent = 'Decline request';
+                confirmButton.className = 'btn btn-danger';
+                confirmButton.textContent = 'Decline';
+                const reason = remarks ? remarks.value.trim() : '';
+                text.textContent = when !== ''
+                    ? 'Decline the appointment for ' + name + ' on ' + when + '? The senior will see this reason: ' + reason
+                    : 'Decline the ' + (submitter.dataset.reviewType || 'assistance') + ' request for ' + name + '? The senior will see this reason: ' + reason;
             } else {
                 const amount = form.querySelector('[name="amount"]');
                 const date = form.querySelector('[name="released_at"]');
@@ -227,7 +317,7 @@ document.querySelectorAll('form').forEach(form => {
         cancelButton.disabled = true;
         closeButton.disabled = true;
         confirmButton.setAttribute('aria-busy', 'true');
-        confirmButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + (pendingKind === 'approve' ? 'Approving...' : 'Recording...');
+        confirmButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>' + (pendingKind === 'approve' ? 'Approving...' : (pendingKind === 'decline' ? 'Declining...' : 'Recording...'));
         pendingForm.requestSubmit(pendingButton);
     });
     modalEl.addEventListener('hide.bs.modal', (event) => {

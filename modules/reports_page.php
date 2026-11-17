@@ -42,8 +42,9 @@ function render_reports_page(array $roles): void {
 <form method="get" class="no-print d-flex flex-wrap align-items-end gap-2 mb-3">
 <label>Month<input class="form-control" type="month" name="month" value="<?= e($month) ?>" required></label>
 <label>Report<select class="form-select" name="type"><?php foreach(array_keys($headings) as $option): ?><option value="<?= $option ?>" <?= $type===$option?'selected':'' ?>><?= ucfirst($option) ?></option><?php endforeach; ?></select></label>
-<button class="btn btn-primary">Apply</button><button class="btn btn-outline-primary" name="export" value="csv">Download CSV</button><button type="button" class="btn btn-outline-primary" onclick="window.print()">Print / Save PDF</button>
+<button class="btn btn-primary"><?= $user['role_name'] === 'Barangay Staff' ? 'View' : 'Apply' ?></button><button class="btn btn-outline-primary" name="export" value="csv">Download CSV</button><button type="button" class="btn btn-outline-primary" onclick="window.print()">Print / Save PDF</button>
 </form>
+<?php if ($user['role_name'] === 'Barangay Staff'): ?><p class="small text-muted no-print">View only. This report does not change any record.</p><?php endif; ?>
 <div class="row g-2 mb-3"><?php foreach($counts as $label=>$count): ?><div class="col"><div class="metric-card"><div class="label"><?= e($label) ?></div><div class="value"><?= e((string)$count) ?></div></div></div><?php endforeach; ?></div>
 <p class="small text-muted">Dates: <?= e($start) ?> through <?= e($date->modify('last day of this month')->format('Y-m-d')) ?>. Statuses are current; pending totals count requests submitted this month. Beneficiaries and releases use actual release dates. Cash totals exclude non-cash assistance.</p>
 <div class="panel table-responsive"><h2 class="h5"><?= ucfirst($type) ?></h2><table class="table"><thead><tr><?php foreach($headings[$type] as $heading): ?><th><?= e($heading) ?></th><?php endforeach; ?></tr></thead><tbody>

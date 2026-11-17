@@ -213,6 +213,7 @@ INSERT IGNORE INTO settings (setting_key, setting_value) VALUES
   ('osca_head_name', ''),
   ('punong_barangay_name', ''),
   ('death_assistance_amount', '2500'),
+  ('appointment_slots_per_hour', '5'),
   ('senior_allocation_note', 'The 1% to 2% share of barangay income for senior assistance is unconfirmed and is not used in budget calculations.');
 
 CREATE TABLE IF NOT EXISTS application_events (

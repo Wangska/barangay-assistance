@@ -31,7 +31,7 @@ function officer_queue_rows(string $type, string $day): array
             $sql .= ' AND DATE(ar.schedule_date) = ?';
             $params[] = $day;
         }
-        $sql .= ' ORDER BY ar.schedule_date, q.queue_id IS NULL, q.queue_number, ar.request_id';
+        $sql .= ' ORDER BY q.claimed_at IS NULL DESC, ar.schedule_date, q.queue_number, ar.request_id';
     } else {
         $sql .= " WHERE ar.request_type <> 'Other Request' AND ar.status IN ('Approved', 'Scheduled', 'Completed')";
         if ($day !== '') {
@@ -102,7 +102,7 @@ function render_officer_queue(string $type): void
     require __DIR__ . '/../includes/sidebar.php';
     ?>
     <h1 class="page-title"><?= $isAppointment ? 'Appointments' : 'Assistance' ?></h1>
-    <p class="text-muted"><?php if ($isAppointment): ?>Staff set the appointment date and timeframe. Verify the visit here when it is done. Appointment numbers keep counting from 001.<?php else: ?>These assistance requests involve money and do not use an appointment. The queue number appears after the administrator records the amount and release date. Assistance numbers keep counting from 001.<?php endif; ?> The list starts with every day, and it narrows as you type a queue number.</p>
+    <p class="text-muted"><?php if ($isAppointment): ?>The senior chooses a Monday to Friday hour. Saturday, Sunday, and regular holidays are closed. Verify the visit here when it is done. Appointment numbers keep counting from 001.<?php else: ?>These assistance requests involve money and do not use an appointment. The queue number appears after the amount and release date are recorded. Assistance numbers keep counting from 001.<?php endif; ?> The list starts with every day, and it narrows as you type a queue number.</p>
     <form method="get" class="panel mb-4">
         <div class="row g-2 align-items-end">
             <div class="col-12 col-md-4">
@@ -138,7 +138,7 @@ function render_officer_queue(string $type): void
         <article class="panel mb-3">
             <h2 class="h6"><?= e($row['full_name']) ?> · <?= e((string) $row['id_control_number']) ?></h2>
             <p><?= e((string) $row['description']) ?></p>
-            <p class="mb-0 text-muted">Waiting for staff to set the appointment.</p>
+            <p class="mb-0 text-muted">Waiting for the appointment queue.</p>
         </article>
         <?php endforeach; ?>
         <?php if ($listed): ?>

@@ -1,4 +1,3 @@
 <?php
-require_once __DIR__ . '/../includes/functions.php';
-$query = $_SERVER['QUERY_STRING'] ?? '';
-redirect('/officer/assistance.php' . ($query !== '' ? '?' . $query : ''));
+require_once __DIR__ . '/../modules/officer_overview.php';
+render_officer_home();

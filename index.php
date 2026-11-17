@@ -6,7 +6,7 @@ if ($user) {
     $home = [
         'Administrator' => '/admin/dashboard.php',
         'Barangay Staff' => '/staff/dashboard.php',
-        'Barangay Officer' => '/officer/assistance.php',
+        'Barangay Officer' => '/officer/dashboard.php',
         'Senior Citizen' => '/senior/dashboard.php',
     ][$user['role_name']] ?? '/login.php';
     redirect($home);

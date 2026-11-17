@@ -40,15 +40,17 @@ $menus = [
 
     'Barangay Officer' => [
 
+        ['Dashboard', '/officer/dashboard.php', 'bi-speedometer2'],
         ['Assistance', '/officer/assistance.php', 'bi-box-seam'],
         ['Appointments', '/officer/appointments.php', 'bi-calendar-check'],
+        ['Reports', '/officer/reports.php', 'bi-printer'],
 
     ],
 
     'Senior Citizen' => [
 
         ['Dashboard', '/senior/dashboard.php', 'bi-speedometer2'],
-        ['My Senior ID', '/senior/id.php', 'bi-person-vcard'],
+        ['Assistance card', '/senior/id.php', 'bi-person-vcard'],
         ['My Assistance Requests', '/senior/requests.php', 'bi-clipboard-plus'],
         ['Announcements', '/senior/announcements.php', 'bi-broadcast'],
         ['Events', '/senior/events.php', 'bi-calendar-event']
