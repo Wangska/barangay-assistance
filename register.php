@@ -166,66 +166,69 @@ unset($_SESSION['registration_old']);
 $extraBodyClass = $embed ? 'registration-embed' : '';
 require_once __DIR__ . '/includes/header.php';
 ?>
-<link rel="stylesheet" href="assets/css/register.css?v=20261027a">
+<link rel="stylesheet" href="assets/css/register.css?v=20261117b">
 
 <main class="auth-wrap py-5">
-    <section class="auth-card p-4 p-md-5 shadow">
+    <section class="auth-card shadow">
         <div class="registration-heading text-center mb-4">
             <span class="registration-kicker">Barangay Senior Citizen Services</span>
             <h1 class="h3 mt-2">Senior Citizen Registration Form</h1>
-            <p class="text-muted mb-0">Please provide complete and accurate information for your senior citizen profile.</p>
+            <p class="text-muted mb-0">Create your account to request assistance and stay connected with barangay services.</p>
         </div>
 
+        <div class="registration-guide"><strong>Before you begin</strong><p>For residents aged 60 and above. Prepare a 1x1 photo, a valid ID, and your emergency contact details.</p><span>Fields marked <b aria-hidden="true">*</b> are required.</span></div>
         <form method="post" action="<?= $embed ? 'register.php?embed=1' : 'register.php' ?>" enctype="multipart/form-data" class="row g-3">
             <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
             <?php if ($embed): ?><input type="hidden" name="registration_embed" value="1"><?php endif; ?>
 
-            <div class="col-12"><h2 class="form-section-title">Personal Information</h2></div>
-            <div class="col-md-4"><label class="form-label required">Last Name</label><input class="form-control" name="last_name" required value="<?= e($old['last_name'] ?? '') ?>"></div>
-            <div class="col-md-4"><label class="form-label required">First Name</label><input class="form-control" name="first_name" required value="<?= e($old['first_name'] ?? '') ?>"></div>
-            <div class="col-md-4"><label class="form-label">Middle Name</label><input class="form-control" name="middle_name" value="<?= e($old['middle_name'] ?? '') ?>"></div>
-            <div class="col-md-3"><label class="form-label required">Date of Birth</label><input class="form-control" type="date" name="birthdate" max="<?= date('Y-m-d') ?>" value="<?= e($old['birthdate'] ?? '') ?>" required></div>
-            <div class="col-md-3"><label class="form-label required">Place of Birth</label><input class="form-control" name="place_of_birth" required value="<?= e($old['place_of_birth'] ?? '') ?>"></div>
-            <div class="col-md-3"><label class="form-label required">Sex</label><select class="form-select" name="gender" required><option value="">Choose option</option><option<?= ($old['gender'] ?? '') === 'Female' ? ' selected' : '' ?>>Female</option><option<?= ($old['gender'] ?? '') === 'Male' ? ' selected' : '' ?>>Male</option></select></div>
-            <div class="col-md-3"><label class="form-label required">Civil Status</label><select class="form-select" name="civil_status" required><option value="">Choose option</option><option<?= ($old['civil_status'] ?? '') === 'Single' ? ' selected' : '' ?>>Single</option><option<?= ($old['civil_status'] ?? '') === 'Married' ? ' selected' : '' ?>>Married</option><option<?= ($old['civil_status'] ?? '') === 'Widowed' ? ' selected' : '' ?>>Widowed</option><option<?= ($old['civil_status'] ?? '') === 'Separated' ? ' selected' : '' ?>>Separated</option><option<?= ($old['civil_status'] ?? '') === 'Divorced' ? ' selected' : '' ?>>Divorced</option></select></div>
+            <fieldset class="registration-section col-12"><legend class="form-section-title"><span class="section-number" aria-hidden="true">1</span>Personal Information</legend><div class="row g-3">
+            <div class="col-md-4"><label class="form-label required" for="last_name">Last Name</label><input class="form-control" id="last_name" name="last_name" required value="<?= e($old['last_name'] ?? '') ?>"></div>
+            <div class="col-md-4"><label class="form-label required" for="first_name">First Name</label><input class="form-control" id="first_name" name="first_name" required value="<?= e($old['first_name'] ?? '') ?>"></div>
+            <div class="col-md-4"><label class="form-label" for="middle_name">Middle Name</label><input class="form-control" id="middle_name" name="middle_name" value="<?= e($old['middle_name'] ?? '') ?>"></div>
+            <div class="col-md-3"><label class="form-label required" for="birthdate">Date of Birth</label><input class="form-control" type="date" id="birthdate" name="birthdate" max="<?= date('Y-m-d') ?>" value="<?= e($old['birthdate'] ?? '') ?>" required></div>
+            <div class="col-md-3"><label class="form-label required" for="place_of_birth">Place of Birth</label><input class="form-control" id="place_of_birth" name="place_of_birth" required value="<?= e($old['place_of_birth'] ?? '') ?>"></div>
+            <div class="col-md-3"><label class="form-label required" for="gender">Sex</label><select class="form-select" id="gender" name="gender" required><option value="">Choose option</option><option<?= ($old['gender'] ?? '') === 'Female' ? ' selected' : '' ?>>Female</option><option<?= ($old['gender'] ?? '') === 'Male' ? ' selected' : '' ?>>Male</option></select></div>
+            <div class="col-md-3"><label class="form-label required" for="civil_status">Civil Status</label><select class="form-select" id="civil_status" name="civil_status" required><option value="">Choose option</option><option<?= ($old['civil_status'] ?? '') === 'Single' ? ' selected' : '' ?>>Single</option><option<?= ($old['civil_status'] ?? '') === 'Married' ? ' selected' : '' ?>>Married</option><option<?= ($old['civil_status'] ?? '') === 'Widowed' ? ' selected' : '' ?>>Widowed</option><option<?= ($old['civil_status'] ?? '') === 'Separated' ? ' selected' : '' ?>>Separated</option><option<?= ($old['civil_status'] ?? '') === 'Divorced' ? ' selected' : '' ?>>Divorced</option></select></div>
 
-            <div class="col-12"><h2 class="form-section-title">Address and Contact</h2></div>
+            </div></fieldset><fieldset class="registration-section col-12"><legend class="form-section-title"><span class="section-number" aria-hidden="true">2</span>Address and Contact</legend><div class="row g-3">
             <div class="col-12"><label class="form-label required" for="address">Purok / Sitio</label><input class="form-control" id="address" name="address" placeholder="Purok and sitio" required value="<?= e($old['address'] ?? '') ?>"><div class="form-text">Barangay Tungkil, Minglanilla, Cebu.</div></div>
-            <div class="col-md-6"><label class="form-label required">Contact Number</label><input class="form-control" type="tel" name="phone_number" placeholder="e.g., 09171234567" required value="<?= e($old['phone_number'] ?? '') ?>"></div>
-            <div class="col-md-6"><label class="form-label">FB Account</label><input class="form-control" name="facebook_account" value="<?= e($old['facebook_account'] ?? '') ?>"></div>
+            <div class="col-md-6"><label class="form-label required" for="phone_number">Contact Number</label><input class="form-control" type="tel" id="phone_number" name="phone_number" placeholder="e.g., 09171234567" required value="<?= e($old['phone_number'] ?? '') ?>"></div>
+            <div class="col-md-6"><label class="form-label" for="facebook_account">FB Account <span class="text-muted fw-normal">(optional)</span></label><input class="form-control" id="facebook_account" name="facebook_account" value="<?= e($old['facebook_account'] ?? '') ?>"></div>
 
-            <div class="col-12"><h2 class="form-section-title">Membership Details</h2></div>
-            <div class="col-md-6"><label class="form-label required">Profession / Skills</label><input class="form-control" name="occupation" required value="<?= e($old['occupation'] ?? '') ?>"></div>
-            <div class="col-md-6"><label class="form-label required">No. of dependent children below 18</label><input class="form-control" type="number" min="0" max="30" step="1" name="dependent_children" required value="<?= e($old['dependent_children'] ?? '') ?>"></div>
-            <div class="col-12"><label class="form-label required">Type of Living</label><input class="form-control" name="living_type" placeholder="Owned, rented, or living with family" required value="<?= e($old['living_type'] ?? '') ?>"></div>
-            <div class="col-md-6"><label class="form-label required">Name of Beneficiary</label><input class="form-control" name="beneficiary_name" required value="<?= e($old['beneficiary_name'] ?? '') ?>"></div>
-            <div class="col-md-6"><label class="form-label required">Beneficiary Address</label><input class="form-control" name="beneficiary_address" required value="<?= e($old['beneficiary_address'] ?? '') ?>"></div>
-            <div class="col-md-4"><label class="form-label required">Receiving financial support</label><select class="form-select" name="is_pensioner" required><option value="">Choose option</option><option<?= ($old['is_pensioner'] ?? '') === 'Yes' ? ' selected' : '' ?>>Yes</option><option<?= ($old['is_pensioner'] ?? '') === 'No' ? ' selected' : '' ?>>No</option></select></div>
-            <div class="col-md-8"><label class="form-label">Name of pension received</label><input class="form-control" name="pension_source" placeholder="Required if you answered Yes" value="<?= e($old['pension_source'] ?? '') ?>"></div>
+            </div></fieldset><fieldset class="registration-section col-12"><legend class="form-section-title"><span class="section-number" aria-hidden="true">3</span>Membership Details</legend><div class="row g-3">
+            <div class="col-md-6"><label class="form-label required" for="occupation">Profession / Skills</label><input class="form-control" id="occupation" name="occupation" required value="<?= e($old['occupation'] ?? '') ?>"></div>
+            <div class="col-md-6"><label class="form-label required" for="dependent_children">No. of dependent children below 18</label><input class="form-control" type="number" min="0" max="30" step="1" id="dependent_children" name="dependent_children" required value="<?= e($old['dependent_children'] ?? '') ?>"></div>
+            <div class="col-12"><label class="form-label required" for="living_type">Type of Living</label><input class="form-control" id="living_type" name="living_type" placeholder="Owned, rented, or living with family" required value="<?= e($old['living_type'] ?? '') ?>"></div>
+            <div class="col-md-6"><label class="form-label required" for="beneficiary_name">Name of Beneficiary</label><input class="form-control" id="beneficiary_name" name="beneficiary_name" required value="<?= e($old['beneficiary_name'] ?? '') ?>"></div>
+            <div class="col-md-6"><label class="form-label required" for="beneficiary_address">Beneficiary Address</label><input class="form-control" id="beneficiary_address" name="beneficiary_address" required value="<?= e($old['beneficiary_address'] ?? '') ?>"></div>
+            <div class="col-md-4"><label class="form-label required" for="is_pensioner">Receiving financial support</label><select class="form-select" id="is_pensioner" name="is_pensioner" required><option value="">Choose option</option><option<?= ($old['is_pensioner'] ?? '') === 'Yes' ? ' selected' : '' ?>>Yes</option><option<?= ($old['is_pensioner'] ?? '') === 'No' ? ' selected' : '' ?>>No</option></select></div>
+            <div class="col-md-8"><label class="form-label" for="pension_source">Name of pension received</label><input class="form-control" id="pension_source" name="pension_source" placeholder="Required if you answered Yes" value="<?= e($old['pension_source'] ?? '') ?>"></div>
 
-            <div class="col-12"><h2 class="form-section-title">In Case of Emergency</h2></div>
-            <div class="col-md-4"><label class="form-label required">Name</label><input class="form-control" name="emergency_contact_name" required value="<?= e($old['emergency_contact_name'] ?? '') ?>"></div>
-            <div class="col-md-4"><label class="form-label required">Address</label><input class="form-control" name="emergency_contact_address" required value="<?= e($old['emergency_contact_address'] ?? '') ?>"></div>
-            <div class="col-md-4"><label class="form-label required">Contact Number</label><input class="form-control" type="tel" name="emergency_contact_phone" required value="<?= e($old['emergency_contact_phone'] ?? '') ?>"></div>
+            </div></fieldset><fieldset class="registration-section col-12"><legend class="form-section-title"><span class="section-number" aria-hidden="true">4</span>In Case of Emergency</legend><div class="row g-3">
+            <div class="col-md-4"><label class="form-label required" for="emergency_contact_name">Name</label><input class="form-control" id="emergency_contact_name" name="emergency_contact_name" required value="<?= e($old['emergency_contact_name'] ?? '') ?>"></div>
+            <div class="col-md-4"><label class="form-label required" for="emergency_contact_address">Address</label><input class="form-control" id="emergency_contact_address" name="emergency_contact_address" required value="<?= e($old['emergency_contact_address'] ?? '') ?>"></div>
+            <div class="col-md-4"><label class="form-label required" for="emergency_contact_phone">Contact Number</label><input class="form-control" type="tel" id="emergency_contact_phone" name="emergency_contact_phone" required value="<?= e($old['emergency_contact_phone'] ?? '') ?>"></div>
 
-            <div class="col-12"><h2 class="form-section-title">Account</h2></div>
-            <div class="col-md-6"><label class="form-label required">1x1 Photo</label><input class="form-control" type="file" name="photo" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required><div class="form-text">JPG, PNG, or WebP; maximum file size is 2 MB.</div></div>
-            <div class="col-md-6"><label class="form-label required">Valid Identification</label><input class="form-control" type="file" name="valid_id" accept=".jpg,.jpeg,.png,.pdf" required><div class="form-text">JPG, PNG, or PDF only; maximum file size is 2 MB.</div></div>
+            </div></fieldset><fieldset class="registration-section col-12"><legend class="form-section-title"><span class="section-number" aria-hidden="true">5</span>Account</legend><div class="row g-3">
+            <div class="col-md-6"><label class="form-label required" for="photo">1x1 Photo</label><input class="form-control" type="file" id="photo" name="photo" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required><div class="form-text">JPG, PNG, or WebP; maximum file size is 2 MB.</div></div>
+            <div class="col-md-6"><label class="form-label required" for="valid_id">Valid Identification</label><input class="form-control" type="file" id="valid_id" name="valid_id" accept=".jpg,.jpeg,.png,.pdf" required><div class="form-text">JPG, PNG, or PDF only; maximum file size is 2 MB.</div></div>
             <div class="col-12"><label class="form-label required" for="email">Email Address</label><input class="form-control" type="email" id="email" name="email" required value="<?= e($old['email'] ?? '') ?>"><div class="form-text">This email is the account you will use to sign in.</div></div>
             <div class="col-md-6">
                 <label class="form-label required" for="password">Password</label>
                 <div class="password-field">
-                    <input class="form-control" type="password" id="password" name="password" minlength="8" required>
+                    <input class="form-control" type="password" id="password" name="password" autocomplete="new-password" aria-describedby="password-help" minlength="8" required>
                     <button type="button" class="password-toggle" data-password-toggle aria-controls="password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button>
                 </div>
+                <p class="form-text mb-0" id="password-help">Use at least 8 characters.</p>
             </div>
             <div class="col-md-6">
                 <label class="form-label required" for="password_confirmation">Confirm Password</label>
                 <div class="password-field">
-                    <input class="form-control" type="password" id="password_confirmation" name="password_confirmation" minlength="8" required>
+                    <input class="form-control" type="password" id="password_confirmation" name="password_confirmation" autocomplete="new-password" minlength="8" required>
                     <button type="button" class="password-toggle" data-password-toggle aria-controls="password_confirmation" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button>
                 </div>
             </div>
+            </div></fieldset>
             <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" value="1" id="terms" name="terms_accepted" <?= ($old['terms_accepted'] ?? '') === '1' ? 'checked' : '' ?> required><label class="form-check-label" for="terms">I certify that the information I provided is true and agree to the processing of my details for senior citizen assistance services.</label></div></div>
 
             <div class="col-12 d-flex flex-column flex-sm-row gap-2 mt-2"><button type="submit" class="btn btn-main flex-fill">Submit Registration</button><?php if (!$embed): ?><a href="login.php" class="btn btn-main-outline flex-fill">Back to Login</a><?php endif; ?></div>

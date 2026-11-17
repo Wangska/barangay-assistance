@@ -18,7 +18,8 @@ if ($user) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Senior Assist — Barangay Tungkil</title>
-    <link rel="stylesheet" href="assets/css/landing.css?v=20261027l">
+    <link rel="stylesheet" href="assets/css/landing.css?v=20261117b">
+    <link rel="stylesheet" href="assets/css/landing-refresh.css?v=20261117e">
     <style>
         dialog.registration-dialog:modal {
             box-sizing: border-box;
@@ -56,7 +57,7 @@ if ($user) {
         }
     </style>
 </head>
-<body>
+<body class="landing-page">
 <header>
     <a class="logo" href="#home"><img class="logo-mark" src="assets/images/seniorlogo.png" alt=""><span>Senior Assist <small>Barangay Tungkil</small></span></a>
     <nav aria-label="Main navigation">
@@ -70,8 +71,8 @@ if ($user) {
 <main>
     <section class="hero" id="home">
         <div class="hero-text">
-            <p class="eyebrow"><span></span> A more caring way to connect</p>
-            <h1>Support that feels <span>close to home.</span></h1>
+            <p class="eyebrow"><span></span> Senior care in Barangay Tungkil</p>
+            <h1>WELCOME TO <span>BARANGGAY TUNGKIL</span></h1>
             <p class="hero-copy">A simple, secure space for senior citizens to request assistance, manage their profile, and stay connected to barangay care.</p>
             <div class="buttons">
                 <a href="register.php" class="btn-primary" data-open-registration>Register as a Senior <span>&rarr;</span></a>
@@ -85,11 +86,8 @@ if ($user) {
         </div>
 
         <div class="hero-image">
-            <div class="image-orbit orbit-one"></div>
-            <div class="image-orbit orbit-two"></div>
-            <img src="assets/images/g.jpg" alt="Senior citizen receiving support">
+            <img class="landing-cover" src="assets/images/barangay-tungkil-building.png" alt="St. Cecilia's College building in Minglanilla" width="1086" height="1448" fetchpriority="high">
             <div class="floating-card card-assist"><span class="float-icon">&starf;</span><div><strong>Assistance made easy</strong><small>Request support online</small></div></div>
-            <div class="floating-card card-update"><span class="pulse-dot"></span><div><strong>Stay updated</strong><small>News and activities</small></div></div>
         </div>
     </section>
 
@@ -108,9 +106,9 @@ if ($user) {
             </ul>
         </div>
         <ol class="about-steps">
-            <li><strong>Register</strong><p>Create a senior account with your name, contact details, address, and a valid ID for review.</p></li>
-            <li><strong>Request help</strong><p>Sign in and describe the medical, financial, or home-visit support you need.</p></li>
-            <li><strong>Stay updated</strong><p>See the request status, any schedule, and barangay announcements in the same account.</p></li>
+            <li><span class="step-number" aria-hidden="true">01</span><strong>Create your account</strong><p>Prepare your photo and valid ID, then submit your details for barangay review.</p></li>
+            <li><span class="step-number" aria-hidden="true">02</span><strong>Request assistance</strong><p>Once approved, sign in and tell us what medical, financial, or home-visit support you need.</p></li>
+            <li><span class="step-number" aria-hidden="true">03</span><strong>Follow your progress</strong><p>Check your request status, upcoming schedules, and community announcements.</p></li>
         </ol>
     </section>
 
@@ -121,6 +119,10 @@ if ($user) {
             <article class="card"><span class="service-icon finance">PHP</span><h3>Financial Assistance</h3><p>Request guidance and support for eligible barangay aid programs.</p><a href="services.php#financial">Learn more <span>&rarr;</span></a></article>
             <article class="card"><span class="service-icon news">*</span><h3>Updates &amp; Activities</h3><p>Keep up with senior programs, announcements, and community events.</p><a href="services.php#updates">Learn more <span>&rarr;</span></a></article>
         </div>
+    </section>
+    <section class="section join-section" aria-labelledby="join-title">
+        <div><p class="eyebrow">Here to help you get started</p><h2 id="join-title">Your next step to<br>staying connected.</h2><p>For residents aged 60 and above. Have your photo and valid ID ready.</p></div>
+        <div class="join-actions"><a href="register.php" class="btn-primary" data-open-registration>Create your account <span aria-hidden="true">&rarr;</span></a><a href="login.php" data-open-signin>Already registered? Sign in</a></div>
     </section>
 </main>
 
