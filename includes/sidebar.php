@@ -77,20 +77,24 @@ $menus = [
             <span>Senior Assist<small>Barangay Tungkil</small></span>
         </div>
 
+        <div class="sidebar-role"><?= e($role) ?></div>
+        <nav class="sidebar-menu" aria-label="<?= e($role) ?> pages">
         <?php foreach (($menus[$role] ?? []) as [$label, $href, $icon]): ?>
 
             <a
                 href="<?= BASE_URL . $href ?>"
                 class="sidebar-link<?= str_ends_with($currentPath, $href) ? ' active' : '' ?>"
+                <?= str_ends_with($currentPath, $href) ? 'aria-current="page"' : '' ?>
             >
 
-                <i class="bi <?= e($icon) ?>"></i>
+                <i class="bi <?= e($icon) ?>" aria-hidden="true"></i>
 
                 <span><?= translated_label($label) ?></span>
 
             </a>
 
         <?php endforeach; ?>
+        </nav>
 
         <div class="mt-auto p-3">
 
@@ -108,7 +112,7 @@ $menus = [
             $accountTag = $profilePage !== null ? 'a' : 'div';
             $accountHref = $profilePage !== null ? ' href="' . BASE_URL . $profilePage . '"' : '';
             ?>
-            <<?= $accountTag ?> class="sidebar-account mb-3"<?= $accountHref ?>>
+            <<?= $accountTag ?> class="sidebar-account mb-3"<?= $accountHref ?><?= $profilePage !== null && str_ends_with($currentPath, $profilePage) ? ' aria-current="page"' : '' ?>>
 
                 <span class="sidebar-avatar">
                     <?php if ($profilePhoto !== null): ?>

@@ -33,6 +33,8 @@ $user = current_user();
         rel="stylesheet"
     >
 
+<link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/sidebar.css?v=20261117f">
+
 </head>
 
 <body class="<?= trim((($user['role_name'] ?? '') === 'Senior Citizen' ? 'senior-interface' : '') . ' ' . ($extraBodyClass ?? '')) ?>" data-base-url="<?= e(BASE_URL) ?>">

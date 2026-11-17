@@ -7,7 +7,7 @@ require_once __DIR__ . '/includes/functions.php';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Services — Senior Assist</title>
-    <link rel="stylesheet" href="assets/css/landing.css?v=20261027l">
+    <link rel="stylesheet" href="assets/css/landing.css?v=20261117f">
 </head>
 <body>
 <header>

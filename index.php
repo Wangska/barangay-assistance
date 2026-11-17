@@ -18,8 +18,8 @@ if ($user) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Senior Assist — Barangay Tungkil</title>
-    <link rel="stylesheet" href="assets/css/landing.css?v=20261117b">
-    <link rel="stylesheet" href="assets/css/landing-refresh.css?v=20261117e">
+    <link rel="stylesheet" href="assets/css/landing.css?v=20261117f">
+    <link rel="stylesheet" href="assets/css/landing-refresh.css?v=20261117f">
     <style>
         dialog.registration-dialog:modal {
             box-sizing: border-box;

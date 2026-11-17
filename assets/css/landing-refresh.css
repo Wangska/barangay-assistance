@@ -94,7 +94,7 @@
 }
 @media (max-width: 620px) {
     .landing-page { --landing-header: 64px; }
-    .landing-page header { top: 0; width: 100%; padding-inline: 16px; }
+    .landing-page header { top: 0; width: 100%; height: var(--landing-header); min-height: var(--landing-header); flex-direction: row; align-items: center; padding-inline: 16px; }
     .landing-page .hero::before, .landing-page .hero::after { top: var(--landing-header); }
     .landing-page .hero { grid-template-columns: 1fr; padding-top: calc(var(--landing-header) + 28px); padding-bottom: 40px; gap: 32px; }
     .landing-page .hero-text h1 { font-size: clamp(2.6rem, 10vw, 3.8rem); }
