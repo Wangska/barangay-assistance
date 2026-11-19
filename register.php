@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/mailer.php';
 header('Cache-Control: no-store');
 $embed = (string) ($_POST['registration_embed'] ?? $_GET['embed'] ?? '') === '1';
 $registrationReturn = $embed ? '/register.php?embed=1' : '/register.php';
@@ -137,6 +138,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         notify_barangay_staff('New Senior Registration', $fullName . ' submitted a senior citizen registration (Account #' . $userId . ').', $userId);
         $pdo->commit();
         unset($_SESSION['registration_old']);
+        if (!send_registration_under_review_mail($email, $fullName)) {
+            error_log('Registration under-review email failed for user #' . $userId . '.');
+        }
 
         if ($embed) {
             echo '<!doctype html><meta charset="utf-8"><script>window.parent.postMessage({type:"registration-success"}, window.location.origin);</script>';

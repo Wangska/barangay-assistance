@@ -10,8 +10,18 @@ function reset_mail_ready(): bool
 
 function send_reset_code(string $email, string $code): bool
 {
-    return app_send_mail($email, 'Senior Assist password verification code',
-        "Your password reset code is: $code\n\nThis code expires in 10 minutes. Do not share it with anyone.\nIf you did not request a password reset, ignore this email.");
+    return app_send_composed_mail(
+        $email,
+        'Senior Assist password verification code',
+        'Reset your password',
+        [
+            'Use this verification code to choose a new password for your Senior Assist account.',
+            'This code expires in 10 minutes. Do not share it with anyone.',
+            'If you did not request a password reset, ignore this email.',
+        ],
+        $code,
+        'Your verification code'
+    );
 }
 // Lock the account first so requests and redemptions serialize across browsers.
 function reset_account(PDO $pdo, string $email): array|false

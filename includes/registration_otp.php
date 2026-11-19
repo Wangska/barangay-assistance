@@ -7,9 +7,18 @@ function registration_email_verified(string $email): bool {
     return isset($v['email'],$v['expires_at']) && $v['email'] === registration_email($email) && $v['expires_at'] > time();
 }
 function send_registration_code(string $email,string $code): bool {
-    return app_send_mail($email,'Senior Assist registration verification code',
-        "Your registration code is: $code\n\nThis code expires in 10 minutes. Do not share it.\nIf you did not request an account, ignore this email.");
-
+    return app_send_composed_mail(
+        $email,
+        'Senior Assist registration verification code',
+        'Verify your email to continue',
+        [
+            'Use this verification code to continue your Senior Assist registration for Barangay Tungkil.',
+            'This code expires in 10 minutes. Do not share it.',
+            'If you did not request an account, ignore this email.',
+        ],
+        $code,
+        'Your verification code'
+    );
 }
 function request_registration_code(PDO $pdo,string $email,string $browser,?callable $deliver=null): string {
     $email=registration_email($email);

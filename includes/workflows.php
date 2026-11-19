@@ -43,7 +43,7 @@ function application_record(int $userId, ?int $requestId = null): array
         $q=db()->prepare('SELECT ar.*,u.full_name,u.user_id FROM assistance_requests ar JOIN senior_citizens s ON s.senior_id=ar.senior_id JOIN users u ON u.user_id=s.user_id WHERE ar.request_id=? AND u.user_id=?');
         $q->execute([$requestId,$userId]);
     } else {
-        $q=db()->prepare('SELECT u.user_id,u.full_name,u.status,u.created_at,s.senior_id FROM users u JOIN senior_citizens s ON s.user_id=u.user_id WHERE u.user_id=?');
+        $q=db()->prepare('SELECT u.user_id,u.full_name,u.email,u.status,u.created_at,s.senior_id FROM users u JOIN senior_citizens s ON s.user_id=u.user_id WHERE u.user_id=?');
         $q->execute([$userId]);
     }
     $record=$q->fetch();

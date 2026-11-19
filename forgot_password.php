@@ -54,16 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Reset Password — Senior Assist</title>
-<link rel="stylesheet" href="assets/css/forgot.css">
-<style>
-.container{padding:24px 12px}.card{width:100%;max-width:480px;padding:32px}
-label{display:block;text-align:left;margin:18px 0 8px;font-size:18px}
-.input-box input{padding:12px;font-size:18px}.error{font-size:17px;line-height:1.5}
-.notice{font-size:17px}.secondary{background:#365a7c;margin-top:12px}
-input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #154ac0;outline-offset:3px}
-</style>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/forgot.css?v=20261119b">
 </head>
 <body><main class="container"><div class="card">
+<img class="brand-mark" src="assets/images/seniorlogo.png" alt="">
+<p class="brand-kicker">Senior Assist · Barangay Tungkil</p>
 <h2><?= $step === 'done' ? 'Password Changed' : 'Reset Password' ?></h2>
 <?php if ($error): ?><div class="error" role="alert"><?= e($error) ?></div><?php endif; ?>
 <?php if ($message): ?><div class="notice" role="status"><?= e($message) ?></div><?php endif; ?>
@@ -84,9 +80,15 @@ input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #154a
 <label for="code">6-digit verification code</label>
 <div class="input-box"><input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></div>
 <label for="password">New password (at least 8 characters)</label>
-<div class="input-box"><input id="password" type="password" name="password" autocomplete="new-password" minlength="8" maxlength="72" required></div>
+<div class="input-box password-field">
+<input id="password" type="password" name="password" autocomplete="new-password" minlength="8" maxlength="72" required>
+<button type="button" class="password-toggle" data-password-toggle aria-controls="password" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button>
+</div>
 <label for="confirmation">Confirm new password</label>
-<div class="input-box"><input id="confirmation" type="password" name="password_confirmation" autocomplete="new-password" minlength="8" maxlength="72" required></div>
+<div class="input-box password-field">
+<input id="confirmation" type="password" name="password_confirmation" autocomplete="new-password" minlength="8" maxlength="72" required>
+<button type="button" class="password-toggle" data-password-toggle aria-controls="confirmation" aria-label="Show password" aria-pressed="false"><i class="bi bi-eye" aria-hidden="true"></i></button>
+</div>
 <button type="submit">Verify Code and Reset Password</button>
 </form>
 <form method="post">
@@ -97,4 +99,18 @@ input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #154a
 <p class="notice">Please wait at least one minute between requests. You can request up to 5 codes per hour. Only the latest code works. If you cannot access your email, contact the Barangay Office.</p>
 <?php endif; ?>
 <a href="index.php#signin" class="back">Back to Login</a>
-</div></main></body></html>
+</div></main>
+<script>
+document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+        const input = document.getElementById(button.getAttribute('aria-controls'));
+        const icon = button.querySelector('i');
+        const visible = input.type === 'password';
+        input.type = visible ? 'text' : 'password';
+        if (icon) icon.className = visible ? 'bi bi-eye-slash' : 'bi bi-eye';
+        button.setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
+        button.setAttribute('aria-pressed', visible ? 'true' : 'false');
+    });
+});
+</script>
+</body></html>

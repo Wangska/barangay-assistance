@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/senior_id.php';
+require_once __DIR__ . '/../includes/mailer.php';
 require_once __DIR__ . '/../sms/sms_gateway.php';
 function render_application_page(array $roles): void
 {
@@ -54,9 +55,21 @@ function render_application_page(array $roles): void
             audit_log((int)$viewer['user_id'],'Application: '.$action,'users',$userId);
             $pdo->commit();
             if (in_array($action,['approve','reject'],true)) {
+                $email=(string)($record['email'] ?? '');
+                $mailSent=$action==='approve'
+                    ? send_registration_approved_mail($email,(string)$record['full_name'])
+                    : send_registration_rejected_mail($email,(string)$record['full_name'],$remarks);
+                if (!$mailSent) {
+                    error_log('Registration '.$action.' email failed for user #'.$userId.'.');
+                }
                 $phone=$pdo->prepare('SELECT phone_number FROM users WHERE user_id=?');$phone->execute([$userId]);
                 $sms=send_sms_with_status($userId,(string)$phone->fetchColumn(),'Your senior registration is now '.$status.'.');
-                flash($sms['ok']?'success':'warning',$sms['ok']?'Application updated and SMS sent.':'Application updated. The SMS could not be sent; the account notification is available.');
+                $parts=['Application updated.'];
+                if ($mailSent) $parts[]='Email sent.';
+                else $parts[]='The email could not be sent; the account notification is available.';
+                if ($sms['ok']) $parts[]='SMS sent.';
+                else $parts[]='The SMS could not be sent.';
+                flash(($mailSent && $sms['ok']) ? 'success' : 'warning', implode(' ', $parts));
             } else flash('success','Application updated.');
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
